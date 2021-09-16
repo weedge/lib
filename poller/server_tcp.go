@@ -30,6 +30,7 @@ type Server struct {
 	decoder        Decoder      // 解码器
 	ioEventQueues  []chan event // IO事件队列集合
 	ioQueueNum     int32        // IO事件队列集合数量
+	//conns          sync.Map     // TCP长连接管理
 	conns          sync.Map     // TCP长连接管理
 	connsNum       int64        // 当前建立的长连接数量
 	stop           chan int     // 服务器关闭信号
