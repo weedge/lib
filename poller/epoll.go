@@ -1,0 +1,67 @@
+// +build linux
+
+package poller
+
+import (
+	"syscall"
+
+	"golang.org/x/sys/unix"
+)
+
+const (
+	EpollRead  = unix.EPOLLIN | unix.EPOLLPRI | unix.EPOLLERR | unix.EPOLLHUP | unix.EPOLLET | unix.EPOLLRDHUP
+	EpollClose = uint32(unix.EPOLLIN | unix.EPOLLRDHUP)
+)
+
+var (
+	epollFD int
+)
+
+func createPoller() (err error) {
+	epollFD, err = syscall.EpollCreate1(0)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func addReadEventFD(fd int) (err error) {
+	err = syscall.EpollCtl(epollFD, syscall.EPOLL_CTL_ADD, fd, &syscall.EpollEvent{
+		Events: EpollRead,
+		Fd:     int32(fd),
+	})
+
+	return
+}
+
+func delEventFD(fd int) error {
+	err := syscall.EpollCtl(epollFD, syscall.EPOLL_CTL_DEL, fd, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func getEvents() ([]event, error) {
+	epollEvents := make([]syscall.EpollEvent, 100)
+	n, err := syscall.EpollWait(epollFD, epollEvents, -1)
+	if err != nil {
+		return nil, err
+	}
+
+	events := make([]event, 0, len(epollEvents))
+	for i := 0; i < n; i++ {
+		event := event{
+			FD: epollEvents[i].Fd,
+		}
+		if epollEvents[i].Events == EpollClose {
+			event.Type = EventClose
+		} else {
+			event.Type = EventIn
+		}
+		events = append(events, event)
+	}
+
+	return events, nil
+}
