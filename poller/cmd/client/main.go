@@ -42,7 +42,7 @@ func start() {
 					return
 				}
 				if ok {
-					log.Println(string(bytes))
+					log.Println("receive:", string(bytes))
 					continue
 				}
 				break
@@ -51,11 +51,12 @@ func start() {
 	}()
 
 	for i := 0; i < 1000; i++ {
-		_, err := conn.Write(common.Encode([]byte("hello" + strconv.Itoa(i))))
+		msg := []byte("hello" + strconv.Itoa(i))
+		_, err := conn.Write(common.Encode(msg))
 		if err != nil {
 			log.Println(err)
 			return
 		}
-		//log.Println("write:", n)
+		log.Println("send:", string(msg))
 	}
 }

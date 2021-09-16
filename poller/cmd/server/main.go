@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/weedge/lib/log"
 	"github.com/weedge/lib/poller"
 	"github.com/weedge/lib/poller/cmd/common"
-	"time"
 )
 
 type MockServerHandler struct {
@@ -15,8 +17,14 @@ func (m *MockServerHandler) OnConnect(c *poller.Conn) {
 }
 
 func (m *MockServerHandler) OnMessage(c *poller.Conn, bytes []byte) {
-	err := poller.NewHeaderLenEncoder(common.HeaderLen, common.MaxLen).EncodeToFD(c.GetFd(), bytes)
-	log.Info("read:", string(bytes), err)
+	log.Info("read:", string(bytes), "from fd:", c.GetFd())
+	encoder := poller.NewHeaderLenEncoder(common.HeaderLen, common.MaxLen)
+	res := fmt.Sprintf("got it: %s", bytes)
+	err := encoder.EncodeToFD(c.GetFd(), []byte(res))
+	if err != nil {
+		log.Error("res", res, "EncodeToFD err:", err.Error())
+	}
+	log.Info("res", res, "EncodeToFD", c.GetFd(), "ok")
 }
 
 func (m *MockServerHandler) OnClose(c *poller.Conn, err error) {

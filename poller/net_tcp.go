@@ -42,6 +42,8 @@ func listen(address string) error {
 		return err
 	}
 
+	log.Info("listen addr", addr, "port", port)
+
 	err = createPoller()
 	if err != nil {
 		log.Error(err)
