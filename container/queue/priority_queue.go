@@ -14,7 +14,7 @@ type Item struct {
 // ie. the 0th element is the *lowest* value
 type PriorityQueue []*Item
 
-func New(capacity int) PriorityQueue {
+func NewPriorityQueue(capacity int) PriorityQueue {
 	return make(PriorityQueue, 0, capacity)
 }
 

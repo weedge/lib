@@ -21,7 +21,7 @@ func equal(t *testing.T, act, exp interface{}) {
 
 func TestPriorityQueue_Ops(t *testing.T) {
 	c := 100
-	pq := New(c)
+	pq := NewPriorityQueue(c)
 
 	ints := make([]int, 0, c)
 	for i := 0; i < c; i++ {
@@ -52,7 +52,7 @@ func TestPriorityQueue_Ops(t *testing.T) {
 
 func TestPriorityQueue_PeekAndShift(t *testing.T) {
 	c := 100
-	pq := New(c)
+	pq := NewPriorityQueue(c)
 
 	for i := 0; i < c; i++ {
 		heap.Push(&pq, &Item{Value: "test", Priority: int64(i)})
@@ -67,7 +67,7 @@ func TestPriorityQueue_PeekAndShift(t *testing.T) {
 
 func TestPriorityQueue_Update(t *testing.T) {
 	c := 10
-	pq := New(c)
+	pq := NewPriorityQueue(c)
 
 	for i := 0; i < c; i++ {
 		heap.Push(&pq, &Item{Value: "test", Priority: int64(i)})

@@ -4,6 +4,6 @@
 
 #### todo
 
-- [ ] 日志分级：基础日志 main(info,debug,warn,err),panic;  业务日志 access, biz, rpc ; 启动日志
+- [ ] 日志分级：基础日志 main(info,debug,warn,err),panic; 业务日志 biz; 访问请求日志 access,rpc; 启动日志
 - [ ] 日志切分
 
