@@ -36,7 +36,7 @@ BenchmarkStandardTimer_StartStop/N-10m-8      	 4947601	       259 ns/op	      8
 
 go tool pprof -http=":8080" cpu.pprof
 Serving web UI on http://localhost:8080
-#可以通过火焰图查看cpu, 内存，函数运行耗时，整体timingwheel 耗时相对少些
+#可以通过火焰图查看cpu占用时间, 内存(allocs已分配的空间和对象数目，heap正在使用的空间和对象数目)，阻塞等情况；整体timingwheel 耗时相对少些;
 ```
 
 总结： time.Timer 经过优化之后，性能有所提升，但是整体小顶堆结构的添加删除操作O(logn)比双向循环链表O(1)的效率要低
