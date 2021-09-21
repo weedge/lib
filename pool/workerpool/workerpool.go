@@ -109,19 +109,25 @@ func (wp *WorkerPool) watchAddWorker() {
 			}
 
 			if atomic.LoadInt32(&wp.workers[wp.indexWorkers].hasGoroutineRunning) <= 0 {
-				atomic.SwapInt32(&wp.workers[wp.indexWorkers].hasGoroutineRunning, 1)
-				wp.wg.Add(1)
-				go wp.workers[wp.indexWorkers].executeAndWatch()
-				atomic.AddInt32(&(wp.curWorkerNum), 1)
-				wp.indexWorkers++
-				if int32(wp.indexWorkers) >= wp.maxWorkerNum {
-					wp.indexWorkers = 0
-				}
-				log.Info("create a new goroutine, current goroutine number is : ", atomic.LoadInt32(&(wp.curWorkerNum)), " the flag ", ch)
+				wp.addWorker()
+				log.Info("create a new worker, current worker number is : ", atomic.LoadInt32(&(wp.curWorkerNum)), " the flag ", ch)
 				break
 			}
 		}
 	}
+}
+
+func (wp *WorkerPool) addWorker() {
+	atomic.SwapInt32(&wp.workers[wp.indexWorkers].hasGoroutineRunning, 1)
+	wp.wg.Add(1)
+	go wp.workers[wp.indexWorkers].executeAndWatch()
+	atomic.AddInt32(&(wp.curWorkerNum), 1)
+	wp.indexWorkers++
+	if int32(wp.indexWorkers) >= wp.maxWorkerNum {
+		wp.indexWorkers = 0
+	}
+
+	return
 }
 
 func (wp *WorkerPool) AddTask(task *Task) {
@@ -144,13 +150,15 @@ func (wp *WorkerPool) AddTask(task *Task) {
 	wp.chWorkTask <- *task
 	atomic.AddInt32(&wp.addTaskStat, -1)
 
-	wp.addWorker()
+	wp.addWorkerWhenAddTask()
 
 	return
 }
 
-// add worker
-func (wp *WorkerPool) addWorker() {
+// add worker when add task cond:
+// 1. 1 < work task num < (min worker num)/2
+// 2. cur worker num < max worker num
+func (wp *WorkerPool) addWorkerWhenAddTask() {
 	chWorkTaskNum := len(wp.chWorkTask)
 	if chWorkTaskNum > 1 && int32(chWorkTaskNum) > wp.minWorkerNum/2 && atomic.LoadInt32(&wp.curWorkerNum) < wp.maxWorkerNum {
 		wp.chAddWorker <- 1
@@ -184,7 +192,6 @@ func (wp *WorkerPool) close() {
 			close(wp.workers[index].chTaskDoRes)
 		}
 		close(wp.chAddWorker)
-		close(wp.chWorkTask)
 	}
 	wp.lock.Unlock()
 }
@@ -196,13 +203,13 @@ func (wp *WorkerPool) Stop() {
 	}
 	atomic.SwapInt32(&(wp.stat), WorkerPool_Stat_Stoping)
 
-	//wait add task over
+	//wait add task product over
 	stopTime := time.Now().Unix()
 	for atomic.LoadInt32(&wp.addTaskStat) > 0 && time.Now().Unix()-stopTime < addWaitingTimeWhenStopPool {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	close(wp.chWorkTask)
+	close(wp.chWorkTask) // stop to close chWorkTask -> close worker pool
 
 	wp.wg.Wait()
 }

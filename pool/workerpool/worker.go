@@ -56,10 +56,10 @@ func (worker *Worker) execute() {
 				worker.chTaskDoRes <- task.Do(task.InParam, task.OutParam)
 				worker.timer.Stop()
 
-				worker.decrease()
+				worker.destroyAfterTaskDone()
 			} else {
 				worker.myWorkerPool.close()
-				log.Info("no task, myWorkerPool close exit worker goroutine, the current goroutine number:", atomic.LoadInt32(&worker.myWorkerPool.curWorkerNum))
+				log.Info("no task, myWorkerPool close and exit worker goroutine, the current goroutine number:", atomic.LoadInt32(&worker.myWorkerPool.curWorkerNum))
 				runtime.Goexit()
 			}
 		case <-worker.chWatchGoroutineOut:
@@ -68,12 +68,12 @@ func (worker *Worker) execute() {
 	}
 }
 
-// decrease cond:
+// worker destroy after task done cond:
 // 1. worker pool is working
 // 2. work task ch is empty
 // 3. cur worker num of pool > min worker num
 // 4. (now - add worker last time) > worker life time
-func (worker *Worker) decrease() {
+func (worker *Worker) destroyAfterTaskDone() {
 	chWorkTaskLen := len(worker.myWorkerPool.chWorkTask)
 	if worker.myWorkerPool.isWorking() && chWorkTaskLen <= 0 &&
 		atomic.LoadInt32(&worker.myWorkerPool.curWorkerNum) > worker.myWorkerPool.minWorkerNum &&
