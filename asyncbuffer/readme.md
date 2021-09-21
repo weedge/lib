@@ -11,7 +11,8 @@
 
 #### 配置
 ```json
-    "async_buffer": {//用于异步批量处理的buffer配置列表
+    {
+      "async_buffer": {//用于异步批量处理的buffer配置列表
         "nmq_live_user": {//buffer名称
             "buffer_win_size": 1,//buffer窗口大小，等于这个值时触发批量操作
             "delay_do_ms": 10,//延时10ms做批量处理
@@ -53,6 +54,7 @@
             }
         }
     }
+  }
 
 ```
 
