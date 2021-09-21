@@ -13,3 +13,15 @@ func Warn(params ...interface{}) {
 func Error(params ...interface{}) {
 	DefaultLogger.Error(params)
 }
+func Infof(format string, params ...interface{}) {
+	DefaultLogger.Infof(format, params)
+}
+func Debugf(format string, params ...interface{}) {
+	DefaultLogger.Debugf(format, params)
+}
+func Warnf(format string, params ...interface{}) {
+	DefaultLogger.Warnf(format, params)
+}
+func Errorf(format string, params ...interface{}) {
+	DefaultLogger.Errorf(format, params)
+}
