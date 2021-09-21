@@ -192,6 +192,7 @@ func (wp *WorkerPool) close() {
 			close(wp.workers[index].chTaskDoRes)
 		}
 		close(wp.chAddWorker)
+		//close(wp.chWorkTask)
 	}
 	wp.lock.Unlock()
 }
