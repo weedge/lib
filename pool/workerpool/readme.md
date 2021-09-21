@@ -8,3 +8,9 @@
 
 接口请求中经常会有批量任务执行，将这些任务放入任务工作池中并发处理，提高接口吞吐率，减少相应时间(RT)
 
+
+
+##### 框架
+
+![workerpool](https://raw.githubusercontent.com/weedge/lib/main/pool/workerpool/workerpool.png)
+
