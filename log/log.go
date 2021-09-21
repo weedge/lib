@@ -7,6 +7,9 @@ func Info(params ...interface{}) {
 func Debug(params ...interface{}) {
 	DefaultLogger.Debug(params)
 }
+func Warn(params ...interface{}) {
+	DefaultLogger.Warn(params)
+}
 func Error(params ...interface{}) {
 	DefaultLogger.Error(params)
 }

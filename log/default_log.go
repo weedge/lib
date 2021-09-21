@@ -46,6 +46,9 @@ func (l *defaultLog) Info(args ...interface{}) {
 func (l *defaultLog) Debug(args ...interface{}) {
 	l.logger.Debug(args...)
 }
+func (l *defaultLog) Warn(args ...interface{}) {
+	l.logger.Warn(args...)
+}
 func (l *defaultLog) Error(args ...interface{}) {
 	l.logger.Error(args...)
 }
@@ -54,6 +57,9 @@ func (l *defaultLog) Infof(format string, args ...interface{}) {
 }
 func (l *defaultLog) Debugf(format string, args ...interface{}) {
 	l.logger.Debugf(format, args...)
+}
+func (l *defaultLog) Warnf(format string, args ...interface{}) {
+	l.logger.Warnf(format, args...)
 }
 func (l *defaultLog) Errorf(format string, args ...interface{}) {
 	l.logger.Errorf(format, args...)

@@ -1,2 +1,208 @@
 package workerpool
 
+import (
+	"runtime/debug"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/weedge/lib/log"
+)
+
+type WorkerPool struct {
+	minWorkerNum      int32      //worker goroutine 最小数目
+	maxWorkerNum      int32      //worker goroutine 最大数目
+	curWorkerNum      int32      //当前worker goroutine数量
+	stat              int32      //任务工作池状态
+	addTaskStat       int32      //添加任务状态
+	chAddWorker       chan int32 //添加worker ch -> watchAddWorker
+	addWorkerLastTime int64      //最新添加worker时间
+	wg                *sync.WaitGroup
+	chWorkTask        chan Task
+	workers           []*Worker
+	indexWorkers      int // watch workers 循环下标
+	lock              *sync.Mutex
+}
+
+func NewWorkerPool(nMinNu, nMaxNu, nChan int) *WorkerPool {
+	wp := &WorkerPool{
+		minWorkerNum: int32(nMinNu),
+		maxWorkerNum: int32(nMaxNu),
+		wg:           &sync.WaitGroup{},
+		lock:         &sync.Mutex{},
+	}
+	wp.init(nMinNu, nMaxNu, nChan)
+
+	return wp
+}
+
+func (wp *WorkerPool) init(nMinNu, nMaxNu, nChan int) {
+	if atomic.LoadInt32(&(wp.stat)) > 0 {
+		log.Warn("worker pool is already initialized ! the stat is ", wp.stat)
+		return
+	}
+
+	if nMinNu <= 0 || nMinNu > nMaxNu {
+		log.Error("worker pool init error , the min number: ", nMinNu, " the max number: ", nMaxNu)
+		return
+	}
+
+	if nChan <= 0 {
+		log.Error("worker pool init error , the nChan : ", nChan)
+		return
+	}
+
+	wp.minWorkerNum = int32(nMinNu)
+	wp.maxWorkerNum = int32(nMaxNu)
+
+	atomic.SwapInt32(&(wp.stat), WorkerPool_Stat_Start)
+
+	wp.chWorkTask = make(chan Task, nChan)
+	wp.chAddWorker = make(chan int32, 1)
+	wp.workers = make([]*Worker, 0, nMaxNu)
+	for i := 0; i < nMaxNu; i++ {
+		wp.workers = append(wp.workers, newWorker(wp))
+	}
+
+	log.Info(" init worker pool ok , the min number:  ", wp.minWorkerNum, " the max number : ", wp.maxWorkerNum)
+
+	return
+}
+
+func (wp *WorkerPool) Run() {
+	for i := int32(0); i < wp.minWorkerNum; i++ {
+		if nil == wp.workers[i] {
+			log.Error(" workers is  nil ,the index is", i)
+			return
+		}
+
+		atomic.AddInt32(&(wp.curWorkerNum), 1)
+		atomic.SwapInt32(&(wp.workers[i].hasGoroutineRunning), 1)
+		wp.wg.Add(1)
+		go wp.workers[i].executeAndWatch()
+	}
+
+	wp.indexWorkers = int(wp.minWorkerNum)
+
+	wp.wg.Add(1)
+	go wp.watchAddWorker()
+	atomic.SwapInt32(&(wp.stat), WorkerPool_Stat_Running)
+
+	log.Info(" run worker pool ok , run the min number:  ", wp.minWorkerNum, " timeout workers and one watch add worker")
+}
+
+func (wp *WorkerPool) watchAddWorker() {
+	debug.SetPanicOnFault(true)
+	defer wp.wg.Done()
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("watch add worker goroutine crash")
+		}
+	}()
+
+	for ch := range wp.chAddWorker {
+		for nTimes := int32(0); wp.isWorking() && nTimes < wp.maxWorkerNum; {
+			nTimes++
+			if nil == wp.workers[wp.indexWorkers] {
+				log.Warn(" the workers is nil the index is ", wp.indexWorkers)
+				continue
+			}
+
+			if atomic.LoadInt32(&wp.workers[wp.indexWorkers].hasGoroutineRunning) <= 0 {
+				atomic.SwapInt32(&wp.workers[wp.indexWorkers].hasGoroutineRunning, 1)
+				wp.wg.Add(1)
+				go wp.workers[wp.indexWorkers].executeAndWatch()
+				atomic.AddInt32(&(wp.curWorkerNum), 1)
+				wp.indexWorkers++
+				if int32(wp.indexWorkers) >= wp.maxWorkerNum {
+					wp.indexWorkers = 0
+				}
+				log.Info("create a new goroutine, current goroutine number is : ", atomic.LoadInt32(&(wp.curWorkerNum)), " the flag ", ch)
+				break
+			}
+		}
+	}
+}
+
+func (wp *WorkerPool) AddTask(task *Task) {
+	if nil == task {
+		log.Warn("AddTask task is nil")
+		return
+	}
+
+	if nil == task.ChIsTimeOut {
+		log.Warn("add task chIsTimeOut is nil")
+		return
+	}
+
+	if atomic.LoadInt32(&(wp.stat)) != WorkerPool_Stat_Running {
+		log.Warn("this worker pool is not a running stat! the stat is ", wp.stat)
+		return
+	}
+
+	atomic.AddInt32(&wp.addTaskStat, 1)
+	wp.chWorkTask <- *task
+	atomic.AddInt32(&wp.addTaskStat, -1)
+
+	wp.addWorker()
+
+	return
+}
+
+// add worker
+func (wp *WorkerPool) addWorker() {
+	chWorkTaskNum := len(wp.chWorkTask)
+	if chWorkTaskNum > 1 && int32(chWorkTaskNum) > wp.minWorkerNum/2 && atomic.LoadInt32(&wp.curWorkerNum) < wp.maxWorkerNum {
+		wp.chAddWorker <- 1
+		wp.addWorkerLastTime = time.Now().Unix()
+	}
+
+	return
+}
+
+func (wp *WorkerPool) GetStat() int32 {
+	return atomic.LoadInt32(&wp.stat)
+}
+
+func (wp *WorkerPool) GetCurrentGoNumber() int32 {
+	return atomic.LoadInt32(&wp.curWorkerNum)
+}
+
+func (wp *WorkerPool) isWorking() bool {
+	return atomic.LoadInt32(&(wp.stat)) == WorkerPool_Stat_Running ||
+		atomic.LoadInt32(&(wp.stat)) == WorkerPool_Stat_Stoping
+}
+
+func (wp *WorkerPool) close() {
+	wp.lock.Lock()
+	if wp.isWorking() {
+		atomic.SwapInt32(&wp.stat, WorkerPool_Stat_Stop)
+		for index, _ := range wp.workers {
+			atomic.SwapInt32(&wp.workers[index].hasGoroutineRunning, 1) // 不让自启
+			close(wp.workers[index].chWatchGoroutineOut)
+			close(wp.workers[index].chExecuteGoroutineOut)
+			close(wp.workers[index].chTaskDoRes)
+		}
+		close(wp.chAddWorker)
+		close(wp.chWorkTask)
+	}
+	wp.lock.Unlock()
+}
+
+func (wp *WorkerPool) Stop() {
+	if atomic.LoadInt32(&(wp.stat)) != WorkerPool_Stat_Running {
+		log.Warn("this worker pool is not a running stat,can't stop ! the stat is ", wp.stat)
+		return
+	}
+	atomic.SwapInt32(&(wp.stat), WorkerPool_Stat_Stoping)
+
+	//wait add task over
+	stopTime := time.Now().Unix()
+	for atomic.LoadInt32(&wp.addTaskStat) > 0 && time.Now().Unix()-stopTime < addWaitingTimeWhenStopPool {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	close(wp.chWorkTask)
+
+	wp.wg.Wait()
+}
