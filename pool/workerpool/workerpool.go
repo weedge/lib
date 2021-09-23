@@ -24,43 +24,41 @@ type WorkerPool struct {
 	lock              *sync.Mutex
 }
 
-func NewWorkerPool(nMinNu, nMaxNu, nChan int) *WorkerPool {
+func NewWorkerPool(minWorkerNum, maxWorkerNum, taskChSize int) *WorkerPool {
+	if minWorkerNum <= 0 || minWorkerNum > maxWorkerNum {
+		log.Error("worker pool init error , the min number: ", minWorkerNum, " the max number: ", maxWorkerNum)
+		return nil
+	}
+
+	if taskChSize <= 0 {
+		log.Error("worker pool init error , the nChan : ", taskChSize)
+		return nil
+	}
+
 	wp := &WorkerPool{
-		minWorkerNum: int32(nMinNu),
-		maxWorkerNum: int32(nMaxNu),
+		minWorkerNum: int32(minWorkerNum),
+		maxWorkerNum: int32(maxWorkerNum),
 		wg:           &sync.WaitGroup{},
 		lock:         &sync.Mutex{},
 	}
-	wp.init(nMinNu, nMaxNu, nChan)
+
+	wp.init(taskChSize)
 
 	return wp
 }
 
-func (wp *WorkerPool) init(nMinNu, nMaxNu, nChan int) {
+func (wp *WorkerPool) init(taskChSize int) {
 	if atomic.LoadInt32(&(wp.stat)) > 0 {
 		log.Warn("worker pool is already initialized ! the stat is ", wp.stat)
 		return
 	}
 
-	if nMinNu <= 0 || nMinNu > nMaxNu {
-		log.Error("worker pool init error , the min number: ", nMinNu, " the max number: ", nMaxNu)
-		return
-	}
-
-	if nChan <= 0 {
-		log.Error("worker pool init error , the nChan : ", nChan)
-		return
-	}
-
-	wp.minWorkerNum = int32(nMinNu)
-	wp.maxWorkerNum = int32(nMaxNu)
-
 	atomic.SwapInt32(&(wp.stat), WorkerPool_Stat_Start)
 
-	wp.chWorkTask = make(chan Task, nChan)
+	wp.chWorkTask = make(chan Task, taskChSize)
 	wp.chAddWorker = make(chan int32, 1)
-	wp.workers = make([]*Worker, 0, nMaxNu)
-	for i := 0; i < nMaxNu; i++ {
+	wp.workers = make([]*Worker, 0, wp.maxWorkerNum)
+	for i := int32(0); i < wp.maxWorkerNum; i++ {
 		wp.workers = append(wp.workers, newWorker(wp))
 	}
 
