@@ -11,6 +11,8 @@
 
 - [x] [queue](https://github.com/weedge/lib/tree/main/container/queue): 优先队列，延迟队列
 
+- [x] [sort_map](https://github.com/weedge/lib/tree/main/container/sort_map):支持对无序map中的kv 升降排序(转换成slice来处理)
+
 - [x] [timingwheel](https://github.com/weedge/lib/tree/main/timingwheel): 层级时间轮
 
 - [x] [buffer pool](https://github.com/weedge/lib/tree/main/pool/bufferpool): 临时对象池, 复用对象，减少gc, 优化逻辑, 
