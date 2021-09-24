@@ -1,6 +1,7 @@
 package workerpool
 
 import (
+	"github.com/weedge/lib/strings"
 	"runtime/debug"
 	"sync"
 	"sync/atomic"
@@ -94,7 +95,7 @@ func (wp *WorkerPool) watchAddWorker() {
 	defer wp.wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
-			log.Error("watch add worker goroutine crash")
+			log.Error("watch add worker goroutine crash, panic", r, strings.BytesToString(debug.Stack()))
 		}
 	}()
 

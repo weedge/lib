@@ -1,6 +1,7 @@
 package workerpool
 
 import (
+	"github.com/weedge/lib/strings"
 	"runtime"
 	"runtime/debug"
 	"sync/atomic"
@@ -43,7 +44,7 @@ func (worker *Worker) execute() {
 				worker.chExecuteGoroutineOut <- 1
 			}
 			atomic.SwapInt32(&worker.hasGoroutineRunning, 0)
-			log.Error("worker execute goroutine crash ", r)
+			log.Error("worker execute goroutine crash, panic", r, strings.BytesToString(debug.Stack()))
 		}
 	}()
 
@@ -101,7 +102,7 @@ func (worker *Worker) executeAndWatch() {
 
 			atomic.AddInt32(&(worker.myWorkerPool.curWorkerNum), -1)
 			atomic.SwapInt32(&(worker.hasGoroutineRunning), 0)
-			log.Error("check timeout worker goroutine is crash ", r)
+			log.Error("check timeout worker goroutine is crash, panic", r, strings.BytesToString(debug.Stack()))
 		}
 	}()
 

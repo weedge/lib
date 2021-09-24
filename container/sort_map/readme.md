@@ -58,7 +58,7 @@ it.bucket = it.startBucket
 
 #### 总结
 
-​	这个实现有点体力活，思路都是一样的，只是不同的map k/v类型 定义的 Len,Swap,Less 不同，后续go(1.17已经支持)支持模版了，在重新实现下
+​	这个实现有点体力活，思路都是一样的，只是不同的map k/v类型 定义的 Len,Swap,Less 不同，后续go(1.17已经支持)支持模版了，用模版实现下
 
 #### reference
 
