@@ -28,7 +28,7 @@ func (this *AsyncTask) Close() {
 	close(this.ch)
 }
 
-func NewAsyncTask(name string, taskChanNumber int64, onError func(err error)) (*AsyncTask, error) {
+func NewAsyncTask(name string, taskChanNumber int64, goNumber int, onError func(err error)) (*AsyncTask, error) {
 	if ok := asyncTaskNames.Contains(name); ok {
 		return nil, fmt.Errorf("asynctask name duplicated: %v", name)
 	}
@@ -37,7 +37,9 @@ func NewAsyncTask(name string, taskChanNumber int64, onError func(err error)) (*
 	asyncTask := new(AsyncTask)
 	asyncTask.name = name
 	asyncTask.ch = make(chan IAsyncTask, taskChanNumber)
-	asyncTask.run(onError)
+	for i := 0; i < goNumber; i++ {
+		asyncTask.run(onError)
+	}
 	return asyncTask, nil
 }
 
