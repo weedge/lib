@@ -10,4 +10,5 @@ type Task struct {
 	OutParam    interface{}                                          //输出
 	ChIsTimeOut chan<- bool                                          //是否超时，true 超时,false 正常
 	TimeOut     time.Duration                                        //任务超时时间
+	OnTimeOut  func(inParam interface{}, outParam interface{})
 }

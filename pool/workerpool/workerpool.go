@@ -188,7 +188,7 @@ func (wp *WorkerPool) close() {
 			atomic.SwapInt32(&wp.workers[index].hasGoroutineRunning, 1) // 不让自启
 			close(wp.workers[index].chWatchGoroutineOut)
 			close(wp.workers[index].chExecuteGoroutineOut)
-			close(wp.workers[index].chTaskDoRes)
+			//close(wp.workers[index].chTaskDoRes)
 		}
 		close(wp.chAddWorker)
 		//close(wp.chWorkTask)

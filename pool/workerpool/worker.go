@@ -62,6 +62,7 @@ func (worker *Worker) execute() {
 				worker.myWorkerPool.close()
 				log.Info("no task, myWorkerPool close and exit worker goroutine, the current goroutine number:", atomic.LoadInt32(&worker.myWorkerPool.curWorkerNum))
 				runtime.Goexit()
+				return
 			}
 		case <-worker.chWatchGoroutineOut:
 			runtime.Goexit()
