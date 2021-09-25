@@ -17,7 +17,9 @@
 
 - [x] [buffer pool](https://github.com/weedge/lib/tree/main/pool/bufferpool): 临时对象池, 复用对象，减少gc, 优化逻辑, 
 
-- [x] [worker pool](https://github.com/weedge/lib/tree/main/pool/workerpool)(并发处理的工作任务池，支持超时任务，自动扩缩worker goroutine) 
+- [x] [worker pool](https://github.com/weedge/lib/tree/main/pool/workerpool): 并发处理的工作任务池，支持超时任务，自动扩缩worker goroutine， 批量不同任务异步处理
+
+- [x] [asynctask](https://github.com/weedge/lib/tree/main/pool/asynctask) : 异步执行单一相同任务，回调错误处理
 
 - [ ] [runtimer](https://github.com/weedge/lib/tree/main/runtimer): 对goroutine运行异常的封装，以及获取goroutine运行时调用的堆栈信息
 
