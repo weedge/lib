@@ -19,6 +19,11 @@
 1. [ants](github.com/panjf2000/ants)
 2. [Concurrency in Golang And WorkerPool](https://hackernoon.com/concurrency-in-golang-and-workerpool-part-1-e9n31ao) [Go语言的并发与WorkerPool](https://mp.weixin.qq.com/s?__biz=MzI2MDA1MTcxMg==&mid=2648468373&idx=1&sn=dc9c6e56cbd20c79a2593481100c69da) Github:[goworkerpool](https://github.com/Joker666/goworkerpool.git)
 3. [The Case For A Go Worker Pool](https://brandur.org/go-worker-pool) GitHub: [worker-pool](https://github.com/vardius/worker-pool)
+4. [一文搞懂如何实现 Go 超时控制](https://segmentfault.com/a/1190000039731121)
 
 
+
+##### 修复问题：
+
+1. 去掉worker对应的watch,  任务task定义超时时间，woker获取任务执行的时候，进行超时任务处理，去掉冗余逻辑 2021/9/26
 

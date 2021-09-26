@@ -78,7 +78,7 @@ func (wp *WorkerPool) Run() {
 		atomic.AddInt32(&(wp.curWorkerNum), 1)
 		atomic.SwapInt32(&(wp.workers[i].hasGoroutineRunning), 1)
 		wp.wg.Add(1)
-		go wp.workers[i].executeAndWatch()
+		go wp.workers[i].safelyDo()
 	}
 
 	wp.indexWorkers = int(wp.minWorkerNum)
@@ -119,7 +119,7 @@ func (wp *WorkerPool) watchAddWorker() {
 func (wp *WorkerPool) addWorker() {
 	atomic.SwapInt32(&wp.workers[wp.indexWorkers].hasGoroutineRunning, 1)
 	wp.wg.Add(1)
-	go wp.workers[wp.indexWorkers].executeAndWatch()
+	go wp.workers[wp.indexWorkers].safelyDo()
 	atomic.AddInt32(&(wp.curWorkerNum), 1)
 	wp.indexWorkers++
 	if int32(wp.indexWorkers) >= wp.maxWorkerNum {
@@ -135,8 +135,16 @@ func (wp *WorkerPool) AddTask(task *Task) {
 		return
 	}
 
-	if nil == task.ChIsTimeOut {
-		log.Warn("add task chIsTimeOut is nil")
+	if nil == task.Do {
+		log.Warn("add task Do func is nil")
+		return
+	}
+	if nil == task.InParam {
+		log.Warn("add task Do func inParam is nil")
+		return
+	}
+	if nil == task.OutParam {
+		log.Warn("add task Do func outParam is nil")
 		return
 	}
 
@@ -186,7 +194,7 @@ func (wp *WorkerPool) close() {
 		atomic.SwapInt32(&wp.stat, WorkerPool_Stat_Stop)
 		for index, _ := range wp.workers {
 			atomic.SwapInt32(&wp.workers[index].hasGoroutineRunning, 1) // 不让自启
-			close(wp.workers[index].chWatchGoroutineOut)
+			//close(wp.workers[index].chWatchGoroutineOut)
 			close(wp.workers[index].chExecuteGoroutineOut)
 			//close(wp.workers[index].chTaskDoRes)
 		}
@@ -209,6 +217,7 @@ func (wp *WorkerPool) Stop() {
 		time.Sleep(10 * time.Millisecond)
 	}
 
+	log.Info("stop worker pool, stop to close chWorkTask -> close worker pool")
 	close(wp.chWorkTask) // stop to close chWorkTask -> close worker pool
 
 	wp.wg.Wait()

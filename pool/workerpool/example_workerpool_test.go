@@ -2,6 +2,7 @@ package workerpool
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 )
@@ -31,10 +32,11 @@ func MyDo(inParam interface{}, outParam interface{}) bool {
 func MyDoSlow(inParam interface{}, outParam interface{}) bool {
 	println("InParam:", inParam.(*InParam).key, inParam.(*InParam).val)
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(4 * time.Second)
 
 	outParam.(*OutParam).err = nil
 	outParam.(*OutParam).res = 1111
+	//println("MyDoSlow run ok", outParam)
 
 	return true
 }
@@ -117,16 +119,7 @@ func TestWorkerPool_RunManyOk(t *testing.T) {
 		wp.AddTask(task)
 	}
 
-	for i, ch := range timeoutChs {
-		go func(index int, ch chan bool) {
-			for {
-				select {
-				case isTimeout, ok := <-ch:
-					fmt.Println("timeOutChs--->", index, isTimeout, ok)
-				}
-			}
-		}(i, ch)
-	}
+	batchAsyncDoTimeout(timeoutChs)
 }
 
 func TestWorkerPool_RunManyTimeout(t *testing.T) {
@@ -151,23 +144,91 @@ func TestWorkerPool_RunManyTimeout(t *testing.T) {
 			TimeOut:     3 * time.Second,
 		}
 		wp.AddTask(task)
-
-		/*
-		isTimeout, ok := <-timeoutChs[i]
-		fmt.Println("timeOutChs--->", i, isTimeout, ok)
-		 */
 	}
 
+	batchAsyncDoTimeout(timeoutChs)
+}
+
+func TestWorkerPool_RunManyOkTimeout(t *testing.T) {
+	wp := NewWorkerPool(3, 5, 3)
+
+	wp.Run()
+	defer wp.Stop()
+
+	timeoutChs := make([]chan bool, 10)
+	for i := 0; i < 10; i++ {
+		inParam := &InParam{
+			key: "wo qu",
+			val: i + 1000,
+		}
+		outParam := &OutParam{}
+		timeoutChs[i] = make(chan bool, 1)
+		timeOut := 3 * time.Second
+		if i%2 == 0 {
+			timeOut = 5 * time.Second
+		}
+		task := &Task{
+			Do:          MyDoSlow,
+			InParam:     inParam,
+			OutParam:    outParam,
+			ChIsTimeOut: timeoutChs[i],
+			TimeOut:     timeOut,
+		}
+		wp.AddTask(task)
+	}
+
+	batchAsyncDoTimeout(timeoutChs)
+}
+
+func batchAsyncDoTimeout(timeoutChs []chan bool) {
+	wg := &sync.WaitGroup{}
 	for i, ch := range timeoutChs {
-		go func(index int, ch chan bool) {
+		wg.Add(1)
+		go func(wg *sync.WaitGroup, index int, ch chan bool) {
+			defer wg.Done()
 			for {
 				select {
 				case isTimeout, ok := <-ch:
-					if isTimeout == true && ok {
-						fmt.Println("timeOutChs--->", index, isTimeout, ok)
-					}
+					fmt.Println("timeOutChs--->", index, isTimeout, ok)
+					return
 				}
 			}
-		}(i, ch)
+		}(wg, i, ch)
 	}
+	wg.Wait()
+}
+
+func TestWorkerPool_RunManyOkTimeoutWithTimeOutHandle(t *testing.T) {
+	wp := NewWorkerPool(3, 5, 3)
+
+	wp.Run()
+	defer wp.Stop()
+
+	//timeoutChs := make([]chan bool, 10)
+	for i := 0; i < 10; i++ {
+		inParam := &InParam{
+			key: "wo qu",
+			val: i + 1000,
+		}
+		outParam := &OutParam{}
+		//timeoutChs[i] = make(chan bool, 1)
+		timeOut := 3 * time.Second
+		if i%2 == 0 {
+			timeOut = 5 * time.Second
+		}
+		task := &Task{
+			Do:          MyDoSlow,
+			InParam:     inParam,
+			OutParam:    outParam,
+			//ChIsTimeOut: timeoutChs[i],
+			TimeOut:     timeOut,
+			OnTimeOut: func(inParam interface{}, outParam interface{}) {
+				key := inParam.(*InParam).key
+				val := inParam.(*InParam).val
+				println("inParam", key, val, "timeout")
+			},
+		}
+		wp.AddTask(task)
+	}
+
 }
