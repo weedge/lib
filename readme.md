@@ -29,6 +29,8 @@
 
 - [ ] net: 网络工具库
 
+- [ ] client: 调用基础组件的封装，mq(kafka(2.0.0+)[Shopify/sarama](https://github.com/Shopify/sarama),rocketMQ),  cache(redis([redis-go](https://github.com/go-redis/redis) pipeline支持更好)/memcached协议),  db(mysql/mongo/tidb), 连接池等
+
 - [ ] zerocopy: 利用底层系统的零拷贝技术，mmap: [edsrzf/mmap-go](https://github.com/edsrzf/mmap-go) sendFile, splice,三方库封装使用
 
 - [ ] [limiter](https://github.com/weedge/lib/tree/main/limiter): 服务提供方限流算法，防止服务过载策略，单机 固定/滑动时间窗口限流算法，漏桶([uber-go/ratelimit]( https://github.com/uber-go/ratelimit) )/( [juju/ratelimit](https://github.com/juju/ratelimit) )令牌桶算法，分布式限流算法(redis 计数，通常在流量入口网关层处理，nginx+lua, golang) 对三方开源服务在业务的基础上进行封装；
