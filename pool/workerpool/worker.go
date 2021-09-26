@@ -11,6 +11,7 @@ import (
 )
 
 type Worker struct {
+	timer                 *time.Timer
 	myWorkerPool          *WorkerPool //所属任务工作池
 	hasGoroutineRunning   int32       //是否有对应的goroutine在运行
 	chTaskIsTimeOut       chan<- bool //任务是否超时，true 超时,false 正常　由添加任务时创建
@@ -19,6 +20,7 @@ type Worker struct {
 
 func newWorker(wp *WorkerPool) *Worker {
 	return &Worker{
+		timer:                 time.NewTimer(DefaultTimeOut),
 		myWorkerPool:          wp,
 		chExecuteGoroutineOut: make(chan int, 1),
 	}
@@ -52,14 +54,16 @@ func (worker *Worker) execute() {
 		select {
 		case task, ok := <-worker.myWorkerPool.chWorkTask:
 			if ok {
-				taskTimer := time.NewTimer(task.TimeOut)
+				if task.TimeOut > 0 {
+					worker.timer.Reset(task.TimeOut)
+				}
 				taskDoResCh := make(chan bool, 1)
 				go func() {
 					taskDoResCh <- task.Do(task.InParam, task.OutParam)
 				}()
 
 				select {
-				case <-taskTimer.C:
+				case <-worker.timer.C:
 					if task.ChIsTimeOut != nil {
 						task.ChIsTimeOut <- true
 					}
