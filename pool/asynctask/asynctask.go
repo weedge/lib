@@ -3,6 +3,7 @@ package asynctask
 import (
 	"fmt"
 	"runtime/debug"
+	"sync"
 
 	"github.com/weedge/lib/container/set"
 	"github.com/weedge/lib/log"
@@ -22,10 +23,12 @@ type IAsyncTask interface {
 type AsyncTask struct {
 	name string
 	ch   chan IAsyncTask
+	wg   *sync.WaitGroup
 }
 
 func (this *AsyncTask) Close() {
 	close(this.ch)
+	this.wg.Wait()
 }
 
 func NewAsyncTask(name string, taskChanNumber int64, goNumber int, onError func(err error)) (*AsyncTask, error) {
@@ -37,7 +40,9 @@ func NewAsyncTask(name string, taskChanNumber int64, goNumber int, onError func(
 	asyncTask := new(AsyncTask)
 	asyncTask.name = name
 	asyncTask.ch = make(chan IAsyncTask, taskChanNumber)
+	asyncTask.wg = &sync.WaitGroup{}
 	for i := 0; i < goNumber; i++ {
+		asyncTask.wg.Add(1)
 		asyncTask.run(onError)
 	}
 	return asyncTask, nil
@@ -51,6 +56,7 @@ func Recover() {
 
 func (this *AsyncTask) run(onError func(err error)) {
 	go func(name string, ch chan IAsyncTask) {
+		defer this.wg.Done()
 		defer Recover()
 
 		log.Infof("AsyncTask [%v] created", name)
@@ -69,6 +75,8 @@ func (this *AsyncTask) run(onError func(err error)) {
 	}(this.name, this.ch)
 }
 
-func (this *AsyncTask) Post(task IAsyncTask) {
-	this.ch <- task
+func (this *AsyncTask) Post(tasks ...IAsyncTask) {
+	for _, task := range tasks {
+		this.ch <- task
+	}
 }
