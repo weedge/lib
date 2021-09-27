@@ -29,7 +29,7 @@
 
 - [ ] net: 网络工具库
 
-- [ ] client: 调用基础组件的封装，mq(kafka(2.0.0+)[Shopify/sarama](https://github.com/Shopify/sarama),rocketMQ),  cache(redis([redis-go](https://github.com/go-redis/redis) pipeline支持更好)/memcached协议),  db(mysql/mongo/tidb), 连接池等
+- [ ] client: 调用基础组件服务的封装，mq(kafka(2.0.0+)[Shopify/sarama](https://github.com/Shopify/sarama),rocketMQ),  cache(redis([redis-go](https://github.com/go-redis/redis) pipeline支持更好)/memcached协议),  db(mysql/mongo/tidb), 连接池等
 
 - [ ] zerocopy: 利用底层系统的零拷贝技术，mmap: [edsrzf/mmap-go](https://github.com/edsrzf/mmap-go) sendFile, splice,三方库封装使用
 
