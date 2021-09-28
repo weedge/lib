@@ -41,6 +41,7 @@ func NewConsumerGroup(name string, msg IConsumerMsg, options ...Option) (consume
 	consumer = &ConsumerGroup{name: name, wg: &sync.WaitGroup{}, msg: msg}
 
 	consumerOpts := getConsumerOptions(options...)
+	log.Info(fmt.Sprintf("consumer options:%+v", consumerOpts))
 
 	consumer.ready = make(chan bool)
 	consumer.config = sarama.NewConfig()
@@ -77,6 +78,7 @@ func NewConsumerGroup(name string, msg IConsumerMsg, options ...Option) (consume
 		err = fmt.Errorf("error creating consumer group client: %v", err)
 		return
 	}
+	log.Info("init consumer group ok!")
 
 	return
 }
@@ -166,10 +168,10 @@ func (consumer *ConsumerGroup) ConsumeClaim(session sarama.ConsumerGroupSession,
 	// The `ConsumeClaim` itself is called within a goroutine, see:
 	// https://github.com/Shopify/sarama/blob/main/consumer_group.go#L27-L29
 	for message := range claim.Messages() {
-		log.Infof("Message claimed: value = %s, timestamp = %v, topic = %s", string(message.Value), message.Timestamp, message.Topic)
+		log.Info(fmt.Sprintf("Message claimed: value = %s, timestamp = %v, topic = %s", string(message.Value), message.Timestamp, message.Topic))
 		err := consumer.msg.Do(message)
 		if err != nil {
-			log.Error("consumer.msg.Do message:", message, "error:", err.Error())
+			log.Error(fmt.Sprintf("consumer.msg.Do error:%s", err.Error()))
 			continue
 		}
 

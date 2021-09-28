@@ -87,7 +87,7 @@ func WithInitialOffset(initialOffset string) Option {
 		if len(initialOffset) == 0 {
 			return
 		}
-		o.reBalanceStrategy = initialOffset
+		o.initialOffset = initialOffset
 	})
 }
 
