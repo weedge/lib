@@ -27,6 +27,7 @@ type AsyncTask struct {
 }
 
 func (this *AsyncTask) Close() {
+	asyncTaskNames.Remove(this.name)
 	close(this.ch)
 	this.wg.Wait()
 }
