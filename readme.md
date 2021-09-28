@@ -29,11 +29,11 @@
 
 - [ ] net: 网络工具库
 
-- [ ] client: 调用基础组件服务的封装，mq(kafka(2.0.0+)[Shopify/sarama](https://github.com/Shopify/sarama),rocketMQ),  cache(redis([redis-go](https://github.com/go-redis/redis) pipeline支持更好)/memcached协议),  db(mysql/mongo/tidb), 连接池等
+- [ ] client: 调用基础组件服务的封装，mq(kafka 高可用分区存放 [Shopify/sarama](https://github.com/Shopify/sarama), rocketMQ 高可用分区，生产事务消息[rocketmq-client-go](https://github.com/apache/rocketmq-client-go), pulsar 计算存储分离，高可用分片存放rocksdb, 负载更均衡，易扩展，方便上云管理， [pulsar-client-go](https://github.com/apache/pulsar-client-go)  topic/生产/消费),  cache(redis([go-redis](https://github.com/go-redis/redis) pipeline支持更好)操作),  db(mysql/tidb [go-sql-driver/mysql](https://github.com/go-sql-driver/mysql) [go-gorm/gorm](https://github.com/go-gorm/gorm)可以通过[gen](https://github.com/smallnest/gen)一次生成RESTful CURD接口, mongo [mongo-go-driver](https://github.com/mongodb/mongo-go-driver), es shard分片存放,节点路由,易扩展 [go-elasticsearch](https://github.com/elastic/go-elasticsearch)), 连接池等
 
-- [ ] zerocopy: 利用底层系统的零拷贝技术，mmap: [edsrzf/mmap-go](https://github.com/edsrzf/mmap-go) sendFile, splice,三方库封装使用
+- [ ] zerocopy: 利用底层系统的零拷贝技术，mmap: [edsrzf/mmap-go](https://github.com/edsrzf/mmap-go) sendfile, splice,三方库封装使用
 
-- [ ] [limiter](https://github.com/weedge/lib/tree/main/limiter): 服务提供方限流算法，防止服务过载策略，单机 固定/滑动时间窗口限流算法，漏桶([uber-go/ratelimit]( https://github.com/uber-go/ratelimit) )/( [juju/ratelimit](https://github.com/juju/ratelimit) )令牌桶算法，分布式限流算法(redis 计数，通常在流量入口网关层处理，nginx+lua, golang) 对三方开源服务在业务的基础上进行封装；
+- [ ] [limiter](https://github.com/weedge/lib/tree/main/limiter): 服务提供方限流算法，防止服务过载策略，单机 固定/滑动时间窗口限流算法，漏桶([uber-go/ratelimit]( https://github.com/uber-go/ratelimit) )/( [juju/ratelimit](https://github.com/juju/ratelimit) )令牌桶算法，分布式限流算法(redis 计数/添加token，通常在流量入口网关层处理，nginx+lua, golang) 对三方开源服务在业务的基础上进行封装；
 
 - [ ] breaker: 服务消费方调用服务熔断机制，开源实现：[afex/hystrix-go](http://github.com/afex/hystrix-go)  [sony/gobreaker](github.com/sony/gobreaker)  对三方开源服务在业务的基础上进行封装；
 
