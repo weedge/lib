@@ -28,5 +28,17 @@ type IConsumerMsg interface {
 
 具体操作见example test
 
+#### Kafka 拓扑结构
+
+![kafka-zk](https://raw.githubusercontent.com/weedge/lib/main/client/mq/kafka/kafka-zk.png)
+
+
+
+#### reference
+
+1. [Kafka 0.10.0 doc](https://kafka.apache.org/0100/documentation.html)
+2. [Kafka doc](https://kafka.apache.org/documentation.html) 最新版文档(2021/9/21 3.0版本)
+3. [Apache Kafka 3.0 发布，离彻底去掉 ZooKeeper 更进一步](https://www.infoq.cn/article/RTTzLOMBPOx2TsL7dM9T)
+
 
 
