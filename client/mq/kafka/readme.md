@@ -1,6 +1,6 @@
 #### 介绍
 
-对Kafka client 开源库 [Shopify/sarama](https://github.com/Shopify/sarama) ,本身兼容kraft mode； 进行单独封装，提供单一功能接口，KISS
+对Kafka client 开源库 [Shopify/sarama](https://github.com/Shopify/sarama) ,本身兼容kraft mode； 进行单独封装，提供单一功能接口
 
 #### 功能接口
 

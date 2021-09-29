@@ -18,9 +18,9 @@
 # 创建topic, topic 分片数，副本数：为1只有一个主副本，没有备份
 /usr/local/bin/kafka-topics  --create --zookeeper localhost:2181 --replication-factor 3 --partitions 2 --topic sarama
 # 对sarama topic生产数据
-/usr/local/bin/kafka-console-producer --broker-list localhost:9092 --topic sarama
+/usr/local/bin/kafka-console-producer --broker-list localhost:9092,localhost:9093,localhost:9094 --topic sarama
 # 从开始offset 消费 sarama topic
-/usr/local/bin/kafka-console-consumer --bootstrap-server localhost:9092 --topic sarama --from-beginning
+/usr/local/bin/kafka-console-consumer --bootstrap-server localhost:9092,localhost:9093,localhost:9094 --topic sarama --from-beginning
 ```
 
 #####  /usr/local/etc/kafka/server.properties 配置:
