@@ -39,9 +39,9 @@
 
 - [ ] [log](https://github.com/weedge/lib/tree/main/log): 日志库, 基于uber [zap](https://github.com/uber-go/zap) 库，满足基础日志，访问日志，请求三方日志，panic日志，启动日志，
 
-- [ ] metric： 监控统计方法，比如计算MAU,DAU，精度要求不高可以使用redis HyperLogLog (只需要12K内存，在标准误差0.81%的前提下，能够统计2^64个数据！HyperLogLog是一种基数估计算法)
+- [ ] metric： 监控统计方法，比如计算MAU,DAU，精度要求不高可以使用redis HyperLogLog (只需要12K内存，在标准误差0.81%的前提下，能够统计2^64个数据！HyperLogLog是一种基数估计算法) agent [opentelemetry-go](https://github.com/open-telemetry/opentelemetry-go) ->  prometheus 
 
-- [ ] opentrace: 服务链路跟踪，比如生成requestId, traceId, spanId 等, [jaeger](https://github.com/jaegertracing/jaeger)  主要用来学习借鉴开源的服务框架思路
+- [ ] trace: 服务链路跟踪，agent [opentelemetry-go](https://github.com/open-telemetry/opentelemetry-go) -> [jaeger](https://github.com/jaegertracing/jaeger)  主要用来学习借鉴开源的服务框架思路
 
 - [ ] consensus: 分布式一致性协议算法，[raft](https://raft.github.io/)  开源方案 [hashicorp/raft](https://github.com/hashicorp/raft)  主要用来学习借鉴开源的服务框架思路
 
