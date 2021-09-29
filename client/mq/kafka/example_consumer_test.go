@@ -14,7 +14,7 @@ type testMsg struct {
 }
 
 func (m *testMsg) Do(msg *sarama.ConsumerMessage) (err error) {
-	log.Info("msg", fmt.Sprintf("msg:%+v", msg))
+	log.Info(fmt.Sprintf("msg: %+v", msg))
 
 	if strings.BytesToString(msg.Value) == "error" {
 		err = fmt.Errorf("msg:%v is err", msg)
@@ -27,9 +27,9 @@ func (m *testMsg) Do(msg *sarama.ConsumerMessage) (err error) {
 func ExampleConsumerGroup_Ops() {
 	cg, err := NewConsumerGroup("consumer.group.test", &testMsg{},
 		WithVersion("2.8.0"), //kafka version
-		WithBrokerList("127.0.0.1:9092"),
+		WithBrokerList("127.0.0.1:9092,127.0.0.1:9093,127.0.0.1:9094"),//兼容kraft mode
 		WithGroupId("consumer.group.test"),
-		WithTopicList("sarama"),
+		WithTopicList("foo"),
 		WithInitialOffset("oldest"),
 		WithReBalanceStrategy("sticky"),
 	)

@@ -4,7 +4,7 @@
 
 安装：brew install kafka
 
-开箱即用，启动：
+开箱即用，zookeeper, kafka broker service启动：
 
 ```shell
 # 启动zookeeper，单个服务，

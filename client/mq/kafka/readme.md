@@ -1,6 +1,6 @@
 #### 介绍
 
-对Kafka client 开源库 [Shopify/sarama](https://github.com/Shopify/sarama) 进行单独封装，提供单一功能接口，KISS
+对Kafka client 开源库 [Shopify/sarama](https://github.com/Shopify/sarama) ,本身兼容kraft mode； 进行单独封装，提供单一功能接口，KISS
 
 #### 功能接口
 
@@ -18,7 +18,7 @@ func (consumer *ConsumerGroup) StartWithDeadline(time time.Time)
 // cancel to close consumer group client 
 func (consumer *ConsumerGroup) Close()
 
-// user intance interface to do（ConsumerMessage）  
+// user instance interface to do（ConsumerMessage）  
 type IConsumerMsg interface {
 	Do(msg *sarama.ConsumerMessage) error
 }
@@ -39,6 +39,7 @@ type IConsumerMsg interface {
 1. [Kafka 0.10.0 doc](https://kafka.apache.org/0100/documentation.html)
 2. [Kafka doc](https://kafka.apache.org/documentation.html) 最新版文档(2021/9/21 3.0版本)
 3. [Apache Kafka 3.0 发布，离彻底去掉 ZooKeeper 更进一步](https://www.infoq.cn/article/RTTzLOMBPOx2TsL7dM9T)
-
-
+4. [KIP-500: Replace ZooKeeper with a Self-Managed Metadata Quorum](https://cwiki.apache.org/confluence/display/KAFKA/KIP-500%3A+Replace+ZooKeeper+with+a+Self-Managed+Metadata+Quorum)
+5. [KRaft (aka KIP-500) mode Early Access Release](https://github.com/apache/kafka/blob/6d1d68617ecd023b787f54aafc24a4232663428d/config/kraft/README.md)
+6. [2.8 版本去掉zk简单操作视频](https://asciinema.org/a/403794/embed)
 
