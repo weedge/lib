@@ -35,8 +35,11 @@
 # Consumer topic msg
 /usr/local/bin/kafka-console-consumer --bootstrap-server localhost:9092,localhost:9093,localhost:9094 --topic foo --from-beginning
 
-# Meta
-/usr/local/bin/kafka-metadata-shell --snapshot ./meta.log
+# Dump metadata log for encounter an issue 
+/usr/local/bin/kafka-dump-log --cluster-metadata-decoder --skip-record-metadata --files /tmp/kraft-combined-logs/\@metadata-0/*.log
+
+# Inspect the metadata of the cluster like the ZooKeeper shell
+/usr/local/bin/kafka-metadata-shell  --snapshot /tmp/kraft-combined-logs/\@metadata-0/00000000000000000000.log
 
 # Stop
 /usr/local/bin/kafka-server-stop 
