@@ -35,11 +35,11 @@
 
 - [ ] [limiter](https://github.com/weedge/lib/tree/main/limiter): 服务提供方限流算法，防止服务过载策略，单机 固定/滑动时间窗口限流算法，漏桶([uber-go/ratelimit]( https://github.com/uber-go/ratelimit) )/( [juju/ratelimit](https://github.com/juju/ratelimit) )令牌桶算法，分布式限流算法(redis 计数/添加token，通常在流量入口网关层处理，nginx+lua, golang) 对三方开源服务在业务的基础上进行封装；
 
-- [ ] breaker: 服务消费方调用服务熔断机制，开源实现：[afex/hystrix-go](http://github.com/afex/hystrix-go)  [sony/gobreaker](github.com/sony/gobreaker)  对三方开源服务在业务的基础上进行封装；
+- [ ] breaker: 服务消费方调用服务熔断机制，开源实现：[afex/hystrix-go](http://github.com/afex/hystrix-go)  [sony/gobreaker](http://github.com/sony/gobreaker)  对三方开源服务在业务的基础上进行封装；
 
 - [ ] [log](https://github.com/weedge/lib/tree/main/log): 日志库, 基于uber [zap](https://github.com/uber-go/zap) 库，满足基础日志，访问日志，请求三方日志，panic日志，启动日志，
 
-- [ ] metric： 监控统计方法，比如计算MAU,DAU，精度要求不高可以使用redis HyperLogLog (只需要12K内存，在标准误差0.81%的前提下，能够统计2^64个数据！HyperLogLog是一种基数估计算法) agent [opentelemetry-go](https://github.com/open-telemetry/opentelemetry-go) ->  prometheus 
+- [ ] metric： 监控统计方法，比如计算MAU,DAU，精度要求不高可以使用redis HyperLogLog (只需要12K内存，在标准误差0.81%的前提下，能够统计2^64个数据！HyperLogLog是一种基数估计算法), Coda Hale metrics go lib [rcrowley/go-metrics](https://github.com/rcrowley/go-metrics) (Gauges, Counters, Meters, Histograms, Timers 等等); agent [opentelemetry-go](https://github.com/open-telemetry/opentelemetry-go) ->  prometheus 
 
 - [ ] trace: 服务链路跟踪，agent [opentelemetry-go](https://github.com/open-telemetry/opentelemetry-go) -> [jaeger](https://github.com/jaegertracing/jaeger)  主要用来学习借鉴开源的服务框架思路
 

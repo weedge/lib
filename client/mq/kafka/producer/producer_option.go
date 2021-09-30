@@ -1,12 +1,14 @@
 package producer
 
 import (
+	"regexp"
 	"strings"
 )
 
 type ProducerOptions struct {
 	brokerList       []string
-	requiredAcks     int    //required ack
+	partitioning     string // key {partition}(manual),hash,random
+	requiredAcks     int    // required ack
 	retryMaxCn       int    // retry max cn
 	compression      string // msg compression(gzip,snappy,lz4,zstd)
 	flushFrequencyMs int    // flush batches frequency
@@ -44,6 +46,30 @@ func WithBrokerList(brokers string) Option {
 	})
 }
 
+// key partition: partition(manual),hash,random
+// - manual partitioning if a partition number is provided
+// - hash partitioning by msg key
+// - random partitioning otherwise.
+func WithPartitioning(partitioning string) Option {
+	return newFuncServerOption(func(o *ProducerOptions) {
+		o.partitioning = "hash"
+		match, _ := regexp.MatchString(`^[0-9]+$|^hash$|^random$|^roundrobin$`, partitioning)
+		if match {
+			o.partitioning = partitioning
+		}
+	})
+}
+
+// RequiredAcks is used in Produce Requests to tell the broker how many replica acknowledgements
+// it must see before responding. Any of the constants defined here are valid. On broker versions
+// prior to 0.8.2.0 any other positive int16 is also valid (the broker will wait for that many
+// acknowledgements) but in 0.8.2.0 and later this will raise an exception (it has been replaced
+// by setting the `min.isr` value in the brokers configuration).
+// 0: NoResponse doesn't send any response, the TCP ACK is all you get.
+// 1: WaitForLocal waits for only the local commit to succeed before responding.
+// -1: WaitForAll waits for all in-sync replicas to commit before responding.
+// The minimum number of in-sync replicas is configured on the broker via
+// the `min.insync.replicas` configuration key.
 func WithRequiredAcks(requiredAcks int) Option {
 	return newFuncServerOption(func(o *ProducerOptions) {
 		if requiredAcks < -1 {

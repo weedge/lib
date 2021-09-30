@@ -20,7 +20,7 @@ func (consumer *ConsumerGroup) Close()
 
 // user instance interface to do（ConsumerMessage）  
 type IConsumerMsg interface {
-	Do(msg *sarama.ConsumerMessage) error
+	Consumer(msg *sarama.ConsumerMessage) error
 }
 ```
 
