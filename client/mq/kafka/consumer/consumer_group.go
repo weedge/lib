@@ -1,4 +1,4 @@
-package kafka
+package consumer
 
 import (
 	"context"
@@ -20,7 +20,7 @@ func init() {
 }
 
 type IConsumerMsg interface {
-	Do(msg *sarama.ConsumerMessage) error
+	Consumer(msg *sarama.ConsumerMessage) error
 }
 
 // Consumer represents a Sarama consumer group consumer
@@ -123,7 +123,7 @@ func (consumer *ConsumerGroup) startWithContext(ctx context.Context) {
 			}
 			// check if context was cancelled, signaling that the consumer should stop
 			if ctx.Err() != nil {
-				log.Info("Sarama consumer stop!...")
+				log.Info("Sarama consumer stop!... ", time.Now().Format(time.RFC3339))
 				return
 			}
 			consumer.ready = make(chan bool)
@@ -169,9 +169,9 @@ func (consumer *ConsumerGroup) ConsumeClaim(session sarama.ConsumerGroupSession,
 	// https://github.com/Shopify/sarama/blob/main/consumer_group.go#L27-L29
 	for message := range claim.Messages() {
 		log.Info(fmt.Sprintf("Message claimed: value = %s, timestamp = %v, topic = %s", string(message.Value), message.Timestamp, message.Topic))
-		err := consumer.msg.Do(message)
+		err := consumer.msg.Consumer(message)
 		if err != nil {
-			log.Error(fmt.Sprintf("consumer.msg.Do error:%s", err.Error()))
+			log.Error(fmt.Sprintf("consumer.msg.Consumer error:%s", err.Error()))
 			continue
 		}
 
