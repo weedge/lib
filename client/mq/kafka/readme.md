@@ -24,7 +24,21 @@ type IConsumerMsg interface {
 }
 ```
 
+##### Producer:
 
+```go
+// new sync/async producer to topic with option(requiredAcks,retryMaxCn,partitioning,compressions,TLS ...etc)
+func NewProducer(topic string, pType string, options ...Option) (p *Producer)
+
+// send string msg no key 
+func (p *Producer) Send(val string) 
+
+// send string msg by string key
+func (p *Producer) SendByKey(key, val string)
+
+// close sync/async producer
+func (p *Producer) Close()
+```
 
 具体操作见example test
 

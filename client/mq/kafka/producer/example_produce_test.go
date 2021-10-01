@@ -29,7 +29,7 @@ func ExampleProducer_SyncProducerOps() {
 			default:
 				p.Send(fmt.Sprintf("hi:%d", cn))
 				cn++
-				time.Sleep(100 * time.Millisecond)
+				//time.Sleep(100 * time.Millisecond)
 			}
 		}
 	}()
@@ -63,7 +63,7 @@ func ExampleProducer_ASyncProducerOps() {
 			default:
 				p.Send(fmt.Sprintf("hi:%d", cn+100))
 				cn++
-				time.Sleep(100 * time.Millisecond)
+				//time.Sleep(100 * time.Millisecond)
 			}
 		}
 	}()

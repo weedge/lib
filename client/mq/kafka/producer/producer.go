@@ -49,6 +49,7 @@ var (
 	}
 )
 
+// new sync/async producer to topic with option(requiredAcks,retryMaxCn,partitioning,compressions,TLS...etc)
 func NewProducer(topic string, pType string, options ...Option) (p *Producer) {
 	p = &Producer{
 		topic: topic,
@@ -96,10 +97,12 @@ func NewProducer(topic string, pType string, options ...Option) (p *Producer) {
 	return
 }
 
+// send string msg no key
 func (p *Producer) Send(val string) {
 	p.send("", val)
 }
 
+// send string msg by string key
 func (p *Producer) SendByKey(key, val string) {
 	p.send(key, val)
 }
@@ -123,7 +126,7 @@ func (p *Producer) send(key string, val string) {
 		if err != nil {
 			log.Error("syncProducer.SendMessage msg err:", err.Error())
 		}
-		log.Info(fmt.Sprintf("syncProducer.SendMessage success,topic:%s,partition:%d,offset:%d", p.topic, partition, offset))
+		log.Info(fmt.Sprintf("syncProducer.SendMessage success,topic:%s,partition:%d,offset:%d,val:%s", p.topic, partition, offset, msg.Value))
 	}
 
 	if p.asyncProducer != nil {
@@ -131,6 +134,7 @@ func (p *Producer) send(key string, val string) {
 	}
 }
 
+// close sync/async producer
 func (p *Producer) Close() {
 	if p.syncProducer != nil {
 		if err := p.syncProducer.Close(); err != nil {
@@ -181,7 +185,7 @@ func (p *Producer) initAsyncProducer(opts *ProducerOptions) (err error) {
 		//}()
 	}, nil, nil)
 
-	runtimer.GoSafely(nil, false, func() {
+	runtimer.GoSafely(p.wg, false, func() {
 		//go func() {
 		for msg := range p.asyncProducer.Successes() {
 			log.Info(fmt.Sprintf("asyncProducer.SendMessage success,topic:%s,partition:%d,offset:%d,val:%s", msg.Topic, msg.Partition, msg.Offset, msg.Value))
