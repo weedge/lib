@@ -4,12 +4,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/weedge/lib/log"
+	"github.com/weedge/lib/runtimer"
 	"io/ioutil"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/weedge/lib/log"
 )
 
 // @todo: add metrics write to log; add trace interceptor;
@@ -21,6 +23,7 @@ type Producer struct {
 	config        *sarama.Config
 	asyncProducer sarama.AsyncProducer
 	syncProducer  sarama.SyncProducer
+	wg            *sync.WaitGroup
 }
 
 var (
@@ -47,7 +50,12 @@ var (
 )
 
 func NewProducer(topic string, pType string, options ...Option) (p *Producer) {
-	p = &Producer{topic: topic, pType: pType}
+	p = &Producer{
+		topic: topic,
+		pType: pType,
+		//wg: &sync.WaitGroup{},
+	}
+	p.config = sarama.NewConfig()
 
 	opts := getProducerOptions(options...)
 	log.Info(fmt.Sprintf("producer options:%+v", opts))
@@ -127,12 +135,19 @@ func (p *Producer) Close() {
 	if p.syncProducer != nil {
 		if err := p.syncProducer.Close(); err != nil {
 			log.Error("Failed to close sync producer cleanly:", err)
+			return
 		}
+		log.Info("Success to close sync producer cleanly")
 	}
 	if p.asyncProducer != nil {
 		if err := p.asyncProducer.Close(); err != nil {
 			log.Error("Failed to close async producer cleanly:", err)
+			return
 		}
+		log.Info("Success to close async producer cleanly")
+	}
+	if p.wg != nil {
+		p.wg.Wait()
 	}
 }
 
@@ -158,11 +173,21 @@ func (p *Producer) initAsyncProducer(opts *ProducerOptions) (err error) {
 
 	// We will just log to STDOUT if we're not able to produce messages.
 	// Note: messages will only be returned here after all retry attempts are exhausted.
-	go func() {
+	runtimer.GoSafely(p.wg, false, func() {
+		//go func() {
 		for err := range p.asyncProducer.Errors() {
-			log.Error("Failed to write access log entry:", err)
+			log.Error("Failed to async produce msg error:", err.Error())
 		}
-	}()
+		//}()
+	}, nil, nil)
+
+	runtimer.GoSafely(nil, false, func() {
+		//go func() {
+		for msg := range p.asyncProducer.Successes() {
+			log.Info(fmt.Sprintf("asyncProducer.SendMessage success,topic:%s,partition:%d,offset:%d,val:%s", msg.Topic, msg.Partition, msg.Offset, msg.Value))
+		}
+		//}()
+	}, nil, nil)
 
 	return
 }

@@ -111,7 +111,7 @@ func (consumer *ConsumerGroup) startWithContext(ctx context.Context) {
 		for err := range consumer.client.Errors() {
 			log.Error(err)
 		}
-	}, nil)
+	}, nil, nil)
 
 	runtimer.GoSafely(consumer.wg, false, func() {
 		// `Consume` should be called inside an infinite loop, when a
@@ -128,7 +128,7 @@ func (consumer *ConsumerGroup) startWithContext(ctx context.Context) {
 			}
 			consumer.ready = make(chan bool)
 		}
-	}, nil)
+	}, nil, nil)
 
 	<-consumer.ready // Await till the consumer has been set up
 	log.Info("Sarama consumer up and running!...")

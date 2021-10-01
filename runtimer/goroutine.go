@@ -2,6 +2,7 @@ package runtimer
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"runtime/debug"
 	"sync"
@@ -9,7 +10,10 @@ import (
 )
 
 // GoSafely WaitGroup wraps a `go func()` with recover()
-func GoSafely(wg *sync.WaitGroup, ignoreRecover bool, handler func(), catchFunc func(r interface{})) {
+func GoSafely(wg *sync.WaitGroup, ignoreRecover bool, handler func(), catchFunc func(r interface{}), w io.Writer) {
+	if w == nil {
+		w = os.Stderr
+	}
 	if wg != nil {
 		wg.Add(1)
 	}
@@ -17,8 +21,7 @@ func GoSafely(wg *sync.WaitGroup, ignoreRecover bool, handler func(), catchFunc 
 		defer func() {
 			if r := recover(); r != nil {
 				if !ignoreRecover {
-					fmt.Fprintf(os.Stderr, "%s goroutine panic: %v\n%s\n",
-						time.Now(), r, string(debug.Stack()))
+					fmt.Fprintf(w, "%s goroutine panic: %v\n%s\n", time.Now(), r, string(debug.Stack()))
 				}
 				if catchFunc != nil {
 					if wg != nil {
@@ -28,8 +31,7 @@ func GoSafely(wg *sync.WaitGroup, ignoreRecover bool, handler func(), catchFunc 
 						defer func() {
 							if p := recover(); p != nil {
 								if !ignoreRecover {
-									fmt.Fprintf(os.Stderr, "recover goroutine panic:%v\n%s\n",
-										p, string(debug.Stack()))
+									fmt.Fprintf(w, "recover goroutine panic:%v\n%s\n", p, string(debug.Stack()))
 								}
 							}
 
@@ -47,12 +49,13 @@ func GoSafely(wg *sync.WaitGroup, ignoreRecover bool, handler func(), catchFunc 
 		}()
 		handler()
 	}()
+	return
 }
 
 // GoUnterminated is used for which goroutine wanna long live as its process.
 // @period: sleep time duration after panic to defeat @handle panic so frequently. if it is not positive,
 //          the @handle will be invoked asap after panic.
-func GoUnterminated(handle func(), wg *sync.WaitGroup, ignoreRecover bool, period time.Duration) {
+func GoUnterminated(handle func(), wg *sync.WaitGroup, ignoreRecover bool, period time.Duration, w io.Writer) {
 	GoSafely(wg,
 		ignoreRecover,
 		handle,
@@ -60,8 +63,8 @@ func GoUnterminated(handle func(), wg *sync.WaitGroup, ignoreRecover bool, perio
 			if period > 0 {
 				time.Sleep(period)
 			}
-			GoUnterminated(handle, wg, ignoreRecover, period)
-		},
+			GoUnterminated(handle, wg, ignoreRecover, period, w)
+		}, w,
 	)
+	return
 }
-

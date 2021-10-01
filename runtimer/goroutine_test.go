@@ -22,7 +22,7 @@ func TestGoSafe(t *testing.T) {
 		},
 		func(r interface{}) {
 			atomic.AddInt32(&times, 1)
-		},
+		}, nil,
 	)
 
 	wg.Wait()
@@ -35,7 +35,7 @@ func TestGoSafe(t *testing.T) {
 		},
 		func(r interface{}) {
 			atomic.AddInt32(&times, 1)
-		},
+		}, nil,
 	)
 	time.Sleep(1e9)
 	assert.True(t, atomic.LoadInt32(&times) == 3)
@@ -52,7 +52,7 @@ func TestGoUnterminated(t *testing.T) {
 		},
 		&wg,
 		false,
-		1e8,
+		1e8, nil,
 	)
 	wg.Wait()
 	assert.True(t, atomic.LoadUint64(&times) == 3)
@@ -62,7 +62,7 @@ func TestGoUnterminated(t *testing.T) {
 	},
 		nil,
 		false,
-		1e8,
+		1e8, nil,
 	)
 	time.Sleep(1e9)
 	assert.True(t, atomic.LoadUint64(&times) == 4)
