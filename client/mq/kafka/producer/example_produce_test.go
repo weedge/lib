@@ -33,6 +33,12 @@ func ExampleSend() {
 		println(partition, offset)
 	}
 
+	err = p.Close()
+	if err != nil {
+		println("close err", err.Error())
+		return
+	}
+
 	// Output:
 	//
 }
