@@ -102,8 +102,8 @@ func WithCompression(compression string) Option {
 
 func WithFlushFrequencyMs(flushFrequencyMs int) Option {
 	return newFuncServerOption(func(o *ProducerOptions) {
-		if flushFrequencyMs <= 0 {
-			flushFrequencyMs = 300
+		if flushFrequencyMs < 0 {
+			flushFrequencyMs = 0
 		}
 
 		o.flushFrequencyMs = flushFrequencyMs
@@ -134,7 +134,7 @@ func getProducerOptions(opts ...Option) *ProducerOptions {
 		requiredAcks:     -1,
 		retryMaxCn:       3,
 		compression:      "",
-		flushFrequencyMs: 300,
+		flushFrequencyMs: 0,
 		certFile:         "",
 		keyFile:          "",
 		caFile:           "",

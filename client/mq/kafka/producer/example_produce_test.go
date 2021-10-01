@@ -2,12 +2,43 @@ package producer
 
 import (
 	"fmt"
+	"github.com/Shopify/sarama"
+	"strings"
 	"sync"
 	"time"
 )
 
+func ExampleSend() {
+	cf := sarama.NewConfig()
+	cf.Producer.RequiredAcks = sarama.WaitForAll
+	cf.Producer.Return.Successes = true
+	//cf.Producer.Flush.Frequency = 300 * time.Millisecond
+
+	blist := strings.Split("127.0.0.1:9092,127.0.0.1:9093,127.0.0.1:9094", ",")
+	p, err := sarama.NewSyncProducer(blist, cf)
+	if err != nil {
+		println("new err", err.Error())
+		return
+	}
+
+	for i := 0; i < 500; i++ {
+		partition, offset, err := p.SendMessage(&sarama.ProducerMessage{
+			Topic: "sarama",
+			Value: sarama.StringEncoder(fmt.Sprintf("hi:%d", i)),
+		})
+		if err != nil {
+			println("send err", err.Error())
+			return
+		}
+		println(partition, offset)
+	}
+
+	// Output:
+	//
+}
+
 func ExampleProducer_SyncProducerOps() {
-	p := NewProducer("test", "sync",
+	p := NewProducer("sarama", "sync",
 		WithBrokerList("127.0.0.1:9092,127.0.0.1:9093,127.0.0.1:9094"),
 		WithRequiredAcks(-1),
 		WithRetryMaxCn(3),
