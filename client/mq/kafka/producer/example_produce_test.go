@@ -14,8 +14,8 @@ func ExampleSend() {
 	cf.Producer.Return.Successes = true
 	//cf.Producer.Flush.Frequency = 300 * time.Millisecond
 
-	blist := strings.Split("127.0.0.1:9092,127.0.0.1:9093,127.0.0.1:9094", ",")
-	p, err := sarama.NewSyncProducer(blist, cf)
+	bList := strings.Split("127.0.0.1:9092,127.0.0.1:9093,127.0.0.1:9094", ",")
+	p, err := sarama.NewSyncProducer(bList, cf)
 	if err != nil {
 		println("new err", err.Error())
 		return
@@ -44,13 +44,16 @@ func ExampleSend() {
 }
 
 func ExampleProducer_SyncProducerOps() {
-	p := NewProducer("sarama", "sync",
+	p := NewProducer("sarama", "sync", nil,
+		WithVersion("2.8.0"),
+		WithClientID("producer.test"),
 		WithBrokerList("127.0.0.1:9092,127.0.0.1:9093,127.0.0.1:9094"),
 		WithRequiredAcks(-1),
 		WithRetryMaxCn(3),
 		WithCompression(""),
 		WithPartitioning(""),
 	)
+	defer p.Close()
 
 	t := time.NewTimer(3 * time.Second)
 	cn := 0
@@ -72,19 +75,21 @@ func ExampleProducer_SyncProducerOps() {
 	}()
 	wg.Wait()
 
-	p.Close()
 	// Output:
 	//
 }
 
 func ExampleProducer_ASyncProducerOps() {
-	p := NewProducer("test", "async",
+	p := NewProducer("test", "async", nil,
+		WithVersion("2.8.0"),
+		WithClientID("producer.test"),
 		WithBrokerList("127.0.0.1:9092,127.0.0.1:9093,127.0.0.1:9094"),
 		WithRequiredAcks(-1),
 		WithRetryMaxCn(3),
 		WithCompression(""),
 		WithPartitioning(""),
 	)
+	defer p.Close()
 
 	t := time.NewTimer(3 * time.Second)
 	cn := 0
@@ -106,7 +111,6 @@ func ExampleProducer_ASyncProducerOps() {
 	}()
 	wg.Wait()
 
-	p.Close()
 	// Output:
 	//
 }

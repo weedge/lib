@@ -3,19 +3,31 @@ package producer
 import (
 	"regexp"
 	"strings"
+	"time"
+
+	"github.com/weedge/lib/client/mq/kafka/auth"
 )
 
 type ProducerOptions struct {
-	brokerList       []string
-	partitioning     string // key {partition}(manual),hash,random
-	requiredAcks     int    // required ack
-	retryMaxCn       int    // retry max cn
-	compression      string // msg compression(gzip,snappy,lz4,zstd)
-	flushFrequencyMs int    // flush batches frequency
-	certFile         string // the optional certificate file for client authentication
-	keyFile          string // the optional key file for client authentication
-	caFile           string // the optional certificate authority file for TLS client authentication
-	verifySSL        bool   // the optional verify ssl certificates chain
+	version           string        // kafka version
+	clientID          string        // The client ID sent with every request to the brokers.
+	brokerList        []string      // broker list
+	partitioning      string        // key {partition}(manual),hash,random
+	requiredAcks      int           // required ack
+	timeOut           time.Duration // The duration the producer will wait to receive -required-acks
+	retryMaxCn        int           // retry max cn (default: 3)
+	compression       string        // msg compression(gzip,snappy,lz4,zstd)
+	maxOpenRequests   int           // The maximum number of unacknowledged requests the client will send on a single connection before blocking (default: 5)
+	maxMessageBytes   int           // The max permitted size of a message (default: 1000000)
+	channelBufferSize int           // The number of events to buffer in internal and external channels.
+
+	// flush batches
+	flushFrequencyMs int // The best-effort frequency of flushes
+	flushBytes       int // The best-effort number of bytes needed to trigger a flush.
+	flushMessages    int // The best-effort number of messages needed to trigger a flush.
+	flushMaxMessages int // The maximum number of messages the producer will send in a single request.
+
+	*auth.AuthOptions
 }
 
 type Option interface {
@@ -34,6 +46,48 @@ func newFuncServerOption(f func(o *ProducerOptions)) *funcServerOption {
 	return &funcServerOption{
 		f: f,
 	}
+}
+
+// kafka version support kafka min version 0.8.2.0
+func WithVersion(version string) Option {
+	return newFuncServerOption(func(o *ProducerOptions) {
+		if len(version) == 0 {
+			version = "0.8.2.0"
+		}
+		o.version = version
+	})
+}
+
+// The client ID sent with every request to the brokers.
+func WithClientID(clientId string) Option {
+	return newFuncServerOption(func(o *ProducerOptions) {
+		o.clientID = clientId
+	})
+}
+
+// The duration the producer will wait to receive -required-acks
+func WithTimeOut(timeOut time.Duration) Option {
+	return newFuncServerOption(func(o *ProducerOptions) {
+		o.timeOut = timeOut
+	})
+}
+
+func WithChannelBufferSize(channelBufferSize int) Option {
+	return newFuncServerOption(func(o *ProducerOptions) {
+		o.channelBufferSize = channelBufferSize
+	})
+}
+
+func WithMaxOpenRequests(maxOpenRequests int) Option {
+	return newFuncServerOption(func(o *ProducerOptions) {
+		o.maxOpenRequests = maxOpenRequests
+	})
+}
+
+func WithMaxMessageBytes(maxMessageBytes int) Option {
+	return newFuncServerOption(func(o *ProducerOptions) {
+		o.maxMessageBytes = maxMessageBytes
+	})
 }
 
 // kafka brokers ip:port,ip:port
@@ -110,40 +164,59 @@ func WithFlushFrequencyMs(flushFrequencyMs int) Option {
 	})
 }
 
-func WithCertFile(certFile string) Option {
+func WithFlushBytes(flushBytes int) Option {
 	return newFuncServerOption(func(o *ProducerOptions) {
-		o.certFile = certFile
+		if flushBytes < 0 {
+			flushBytes = 0
+		}
+
+		o.flushBytes = flushBytes
 	})
 }
 
-func WithKeyFile(keyFile string) Option {
+func WithFlushMessages(flushMessages int) Option {
 	return newFuncServerOption(func(o *ProducerOptions) {
-		o.keyFile = keyFile
+		if flushMessages < 0 {
+			flushMessages = 0
+		}
+
+		o.flushMessages = flushMessages
 	})
 }
 
-func WithCaFile(caFile string) Option {
+func WithFlushMaxMessages(flushMaxMessages int) Option {
 	return newFuncServerOption(func(o *ProducerOptions) {
-		o.caFile = caFile
+		if flushMaxMessages < 0 {
+			flushMaxMessages = 0
+		}
+
+		o.flushMaxMessages = flushMaxMessages
 	})
 }
 
-func getProducerOptions(opts ...Option) *ProducerOptions {
-	ConsumerGroupOptions := &ProducerOptions{
-		brokerList:       nil,
-		requiredAcks:     -1,
-		retryMaxCn:       3,
-		compression:      "",
-		flushFrequencyMs: 0,
-		certFile:         "",
-		keyFile:          "",
-		caFile:           "",
-		verifySSL:        false,
+func getProducerOptions(authOpts []auth.Option, opts ...Option) *ProducerOptions {
+	producerOptions := &ProducerOptions{
+		version:           "0.8.2.0",
+		clientID:          "",
+		brokerList:        nil,
+		partitioning:      "",
+		requiredAcks:      -1,
+		timeOut:           5 * time.Second,
+		retryMaxCn:        3,
+		compression:       "",
+		maxOpenRequests:   5,
+		maxMessageBytes:   1000000,
+		channelBufferSize: 256,
+		flushFrequencyMs:  0,
+		flushBytes:        0,
+		flushMessages:     0,
+		flushMaxMessages:  0,
+		AuthOptions:       auth.GetAuthOptions(authOpts...),
 	}
 
 	for _, o := range opts {
-		o.apply(ConsumerGroupOptions)
+		o.apply(producerOptions)
 	}
 
-	return ConsumerGroupOptions
+	return producerOptions
 }

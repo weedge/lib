@@ -1,11 +1,9 @@
 package producer
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
+	"github.com/weedge/lib/client/mq/kafka/auth"
 	"github.com/weedge/lib/runtimer"
-	"io/ioutil"
 	"strconv"
 	"sync"
 	"time"
@@ -50,7 +48,7 @@ var (
 )
 
 // new sync/async producer to topic with option(requiredAcks,retryMaxCn,partitioning,compressions,TLS...etc)
-func NewProducer(topic string, pType string, options ...Option) (p *Producer) {
+func NewProducer(topic string, pType string, authOpts []auth.Option, options ...Option) (p *Producer) {
 	p = &Producer{
 		topic: topic,
 		pType: pType,
@@ -58,9 +56,16 @@ func NewProducer(topic string, pType string, options ...Option) (p *Producer) {
 	}
 	p.config = sarama.NewConfig()
 
-	opts := getProducerOptions(options...)
+	opts := getProducerOptions(authOpts, options...)
 	log.Info(fmt.Sprintf("producer options:%+v", opts))
 
+	var err error
+	p.config.Version, err = sarama.ParseKafkaVersion(opts.version)
+	if err != nil {
+		return
+	}
+
+	p.config.ClientID = opts.clientID
 	p.config.Producer.RequiredAcks = requiredAcks[opts.requiredAcks]
 	p.config.Producer.Retry.Max = opts.retryMaxCn
 	p.config.Producer.Compression = compressions[opts.compression]                              // Compress messages
@@ -76,11 +81,9 @@ func NewProducer(topic string, pType string, options ...Option) (p *Producer) {
 		p.partition = int32(partition)
 	}
 
-	tlsConfig := createTlsConfiguration(opts)
-	if tlsConfig != nil {
-		p.config.Net.TLS.Config = tlsConfig
-		p.config.Net.TLS.Enable = true
-	}
+	opts.AuthOptions.InitSSL(p.config)
+
+	opts.AuthOptions.InitSASLSCRAM(p.config)
 
 	switch p.pType {
 	case "sync":
@@ -136,6 +139,9 @@ func (p *Producer) send(key string, val string) {
 
 // close sync/async producer
 func (p *Producer) Close() {
+	if p.wg != nil {
+		p.wg.Wait()
+	}
 	if p.syncProducer != nil {
 		if err := p.syncProducer.Close(); err != nil {
 			log.Error("Failed to close sync producer cleanly:", err)
@@ -149,9 +155,6 @@ func (p *Producer) Close() {
 			return
 		}
 		log.Info("Success to close async producer cleanly")
-	}
-	if p.wg != nil {
-		p.wg.Wait()
 	}
 }
 
@@ -192,35 +195,6 @@ func (p *Producer) initAsyncProducer(opts *ProducerOptions) (err error) {
 		}
 		//}()
 	}, nil, nil)
-
-	return
-}
-
-func createTlsConfiguration(opts *ProducerOptions) (t *tls.Config) {
-	if opts.certFile == "" || opts.keyFile == "" || opts.caFile == "" {
-		return
-	}
-
-	cert, err := tls.LoadX509KeyPair(opts.certFile, opts.keyFile)
-	if err != nil {
-		log.Error("tls.LoadX509KeyPair err", err)
-		return
-	}
-
-	caCert, err := ioutil.ReadFile(opts.caFile)
-	if err != nil {
-		log.Error("ioutil.ReadFile err", err)
-		return
-	}
-
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
-
-	t = &tls.Config{
-		Certificates:       []tls.Certificate{cert},
-		RootCAs:            caCertPool,
-		InsecureSkipVerify: opts.verifySSL,
-	}
 
 	return
 }

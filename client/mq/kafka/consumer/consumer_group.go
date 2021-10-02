@@ -3,6 +3,7 @@ package consumer
 import (
 	"context"
 	"fmt"
+	"github.com/weedge/lib/client/mq/kafka/auth"
 	"sync"
 	"time"
 
@@ -37,10 +38,10 @@ type ConsumerGroup struct {
 }
 
 // user just defined open consumer group option
-func NewConsumerGroup(name string, msg IConsumerMsg, options ...Option) (consumer *ConsumerGroup, err error) {
+func NewConsumerGroup(name string, msg IConsumerMsg, authOpts []auth.Option, options ...Option) (consumer *ConsumerGroup, err error) {
 	consumer = &ConsumerGroup{name: name, wg: &sync.WaitGroup{}, msg: msg}
 
-	consumerOpts := getConsumerOptions(options...)
+	consumerOpts := getConsumerOptions(authOpts, options...)
 	log.Info(fmt.Sprintf("consumer options:%+v", consumerOpts))
 
 	consumer.ready = make(chan bool)
@@ -72,6 +73,10 @@ func NewConsumerGroup(name string, msg IConsumerMsg, options ...Option) (consume
 		err = fmt.Errorf("un define consumer group rebalance strategy")
 		return
 	}
+
+	consumerOpts.AuthOptions.InitSSL(consumer.config)
+
+	consumerOpts.AuthOptions.InitSASLSCRAM(consumer.config)
 
 	consumer.client, err = sarama.NewConsumerGroup(consumerOpts.brokerList, consumerOpts.groupId, consumer.config)
 	if err != nil {
@@ -136,6 +141,8 @@ func (consumer *ConsumerGroup) startWithContext(ctx context.Context) {
 }
 
 func (consumer *ConsumerGroup) Close() {
+	consumer.wg.Wait()
+
 	if consumer.cancel != nil {
 		consumer.cancel()
 	}
@@ -145,8 +152,6 @@ func (consumer *ConsumerGroup) Close() {
 	if err != nil {
 		log.Error("consumer.client.Close err", err.Error())
 	}
-
-	consumer.wg.Wait()
 }
 
 // Setup is run at the beginning of a new session, before ConsumeClaim

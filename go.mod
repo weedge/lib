@@ -8,4 +8,5 @@ require (
 	go.uber.org/zap v1.19.1
 	golang.org/x/sys v0.0.0-20210510120138-977fb7262007
 	github.com/Shopify/sarama v1.26.4
+	github.com/xdg-go/scram v1.0.2
 )

@@ -1,6 +1,7 @@
 package consumer
 
 import (
+	"github.com/weedge/lib/client/mq/kafka/auth"
 	"strings"
 )
 
@@ -11,6 +12,8 @@ type ConsumerGroupOptions struct {
 	groupId           string   // consumer groupId
 	reBalanceStrategy string   // consumer group partition assignment strategy (range, roundrobin, sticky)
 	initialOffset     string   // initial offset to consumer (oldest, newest)
+
+	*auth.AuthOptions
 }
 
 type Option interface {
@@ -91,14 +94,15 @@ func WithInitialOffset(initialOffset string) Option {
 	})
 }
 
-func getConsumerOptions(opts ...Option) *ConsumerGroupOptions {
+func getConsumerOptions(authOpts []auth.Option, opts ...Option) *ConsumerGroupOptions {
 	ConsumerGroupOptions := &ConsumerGroupOptions{
-		version:           "",
+		version:           "0.8.2.0",
 		groupId:           "",
 		brokerList:        nil,
 		topicList:         nil,
 		reBalanceStrategy: "sticky",
 		initialOffset:     "newest",
+		AuthOptions:       auth.GetAuthOptions(authOpts...),
 	}
 
 	for _, o := range opts {
