@@ -5,7 +5,6 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/weedge/lib/log"
 	"github.com/weedge/lib/strings"
-	"time"
 )
 
 type testMsg struct {
@@ -35,9 +34,9 @@ func ExampleConsumerGroup_Ops() {
 		println(err)
 	}
 	defer cg.Close()
-	//cg.Start()
+	//cg.StartWithDeadline(time.Now().Add(10 * time.Second))
 	//cg.StartWithTimeOut(10 * time.Second)
-	cg.StartWithDeadline(time.Now().Add(10 * time.Second))
+	cg.Start()
 
 	// output:
 	//
