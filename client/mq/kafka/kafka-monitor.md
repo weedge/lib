@@ -63,4 +63,4 @@ brew services start grafana
 
 ##### reference
 
-1. [Prometheus+Grafana+kafka_exporter搭建监控系统监控kafka](https://github.com/Lancger/opslinux/blob/master/kafka/Prometheus%2BGrafana%2Bkafka_exporter%E6%90%AD%E5%BB%BA%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E7%9B%91%E6%8E%A7kafka.md) 生产环境
+1. [Prometheus+Grafana+kafka_exporter搭建监控系统监控kafka](https://github.com/Lancger/opslinux/blob/master/kafka/Prometheus%2BGrafana%2Bkafka_exporter%E6%90%AD%E5%BB%BA%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E7%9B%91%E6%8E%A7kafka.md)
