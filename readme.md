@@ -31,7 +31,7 @@
 
 - [ ] client: 调用基础组件服务的封装，mq( rocketMQ 高可用分区，生产事务消息[rocketmq-client-go](https://github.com/apache/rocketmq-client-go), pulsar 计算存储分离，高可用分片存放rocksdb, 负载更均衡，易扩展，方便上云管理， [pulsar-client-go](https://github.com/apache/pulsar-client-go)  topic/生产/消费),  cache(redis([go-redis](https://github.com/go-redis/redis) pipeline支持更好)操作),  db(mysql/tidb [go-sql-driver/mysql](https://github.com/go-sql-driver/mysql) [go-gorm/gorm](https://github.com/go-gorm/gorm)可以通过[gen](https://github.com/smallnest/gen)一次生成RESTful CURD接口, mongo [mongo-go-driver](https://github.com/mongodb/mongo-go-driver), es shard分片存放,节点路由,易扩展 [go-elasticsearch](https://github.com/elastic/go-elasticsearch)), 连接池等
 
-- [ ] [client-mq-kafka](https://github.com/weedge/lib/tree/main/client/mq/kafka): kafka 高可用分区存放, 后续会去掉zk管理元数据依赖(通过kraft Metadata clusters mode管理元数据), 依赖三方库 [Shopify/sarama](https://github.com/Shopify/sarama) 
+- [ ] [client-mq-kafka](https://github.com/weedge/lib/tree/main/client/mq/kafka): kafka 高可用分区存放, 后续会去掉zk管理元数据依赖(通过kraft Metadata clusters mode管理元数据), 三方库 [Shopify/sarama](https://github.com/Shopify/sarama) (sarama [issue#901](https://github.com/Shopify/sarama/issues/901)支持事务操作的讨论, 在一些场景支持的不够好, [不推荐场景](https://help.aliyun.com/document_detail/266782.html)) [confluent-kafka-go](https://github.com/confluentinc/confluent-kafka-go) (支持事务操作)
 
 - [ ] zerocopy: 利用底层系统的零拷贝技术，mmap: [edsrzf/mmap-go](https://github.com/edsrzf/mmap-go) sendfile, splice,三方库封装使用
 
