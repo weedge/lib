@@ -9,4 +9,5 @@ require (
 	golang.org/x/sys v0.0.0-20210510120138-977fb7262007
 	github.com/Shopify/sarama v1.26.4
 	github.com/xdg-go/scram v1.0.2
+	github.com/lestrrat/go-file-rotatelogs v0.0.0-20180223000712-d3151e2a480f
 )

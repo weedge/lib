@@ -2,26 +2,50 @@
 package log
 
 func Info(params ...interface{}) {
-	DefaultLogger.Info(params...)
+	if mainLogger != nil {
+		mainLogger.Info(params...)
+		return
+	}
+	defaultLogger.Info(params...)
 }
 func Debug(params ...interface{}) {
-	DefaultLogger.Debug(params...)
+	if mainLogger != nil {
+		mainLogger.Debug(params...)
+		return
+	}
+	defaultLogger.Debug(params...)
 }
 func Warn(params ...interface{}) {
-	DefaultLogger.Warn(params...)
+	if mainLogger != nil {
+		mainLogger.Warn(params...)
+		return
+	}
+	defaultLogger.Warn(params...)
 }
 func Error(params ...interface{}) {
-	DefaultLogger.Error(params...)
+	defaultLogger.Error(params...)
 }
 func Infof(format string, params ...interface{}) {
-	DefaultLogger.Infof(format, params...)
+	if mainLogger != nil {
+		mainLogger.Infof(format, params...)
+		return
+	}
+	defaultLogger.Infof(format, params...)
 }
 func Debugf(format string, params ...interface{}) {
-	DefaultLogger.Debugf(format, params...)
+	if mainLogger != nil {
+		mainLogger.Debugf(format, params...)
+		return
+	}
+	defaultLogger.Debugf(format, params...)
 }
 func Warnf(format string, params ...interface{}) {
-	DefaultLogger.Warnf(format, params...)
+	if mainLogger != nil {
+		mainLogger.Warnf(format, params...)
+		return
+	}
+	defaultLogger.Warnf(format, params...)
 }
 func Errorf(format string, params ...interface{}) {
-	DefaultLogger.Errorf(format, params...)
+	defaultLogger.Errorf(format, params...)
 }

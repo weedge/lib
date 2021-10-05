@@ -1,6 +1,14 @@
 package log
 
-var DefaultLogger logger = newDefaultLog()
+var (
+	defaultLogger logger = newConsoleLog()
+
+	mainLogger    logger
+	bizLogger     logger
+	accessLogger  logger
+	recoverLogger logger
+	ralLogger     logger
+)
 
 type logger interface {
 	Info(args ...interface{})
@@ -12,3 +20,10 @@ type logger interface {
 	Warnf(format string, args ...interface{})
 	Errorf(format string, args ...interface{})
 }
+
+/*
+func SetUp(){
+	mainLogger = newMainLog()
+}
+
+*/

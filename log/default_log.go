@@ -11,11 +11,11 @@ func TimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 	enc.AppendString(t.Format("2006-01-02 15:04:05.000"))
 }
 
-type defaultLog struct {
+type consoleLog struct {
 	logger *zap.SugaredLogger
 }
 
-func newDefaultLog() *defaultLog {
+func newConsoleLog() *consoleLog {
 	core := zapcore.NewCore(
 		zapcore.NewConsoleEncoder(zapcore.EncoderConfig{
 			// Keys can be anything except the empty string.
@@ -35,32 +35,32 @@ func newDefaultLog() *defaultLog {
 		zap.DebugLevel,
 	)
 	logger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(2)).Sugar()
-	return &defaultLog{
+	return &consoleLog{
 		logger: logger,
 	}
 }
 
-func (l *defaultLog) Info(args ...interface{}) {
+func (l *consoleLog) Info(args ...interface{}) {
 	l.logger.Info(args...)
 }
-func (l *defaultLog) Debug(args ...interface{}) {
+func (l *consoleLog) Debug(args ...interface{}) {
 	l.logger.Debug(args...)
 }
-func (l *defaultLog) Warn(args ...interface{}) {
+func (l *consoleLog) Warn(args ...interface{}) {
 	l.logger.Warn(args...)
 }
-func (l *defaultLog) Error(args ...interface{}) {
+func (l *consoleLog) Error(args ...interface{}) {
 	l.logger.Error(args...)
 }
-func (l *defaultLog) Infof(format string, args ...interface{}) {
+func (l *consoleLog) Infof(format string, args ...interface{}) {
 	l.logger.Infof(format, args...)
 }
-func (l *defaultLog) Debugf(format string, args ...interface{}) {
+func (l *consoleLog) Debugf(format string, args ...interface{}) {
 	l.logger.Debugf(format, args...)
 }
-func (l *defaultLog) Warnf(format string, args ...interface{}) {
+func (l *consoleLog) Warnf(format string, args ...interface{}) {
 	l.logger.Warnf(format, args...)
 }
-func (l *defaultLog) Errorf(format string, args ...interface{}) {
+func (l *consoleLog) Errorf(format string, args ...interface{}) {
 	l.logger.Errorf(format, args...)
 }
