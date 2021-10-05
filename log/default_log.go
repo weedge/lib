@@ -34,7 +34,7 @@ func newDefaultLog() *defaultLog {
 		zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout)),
 		zap.DebugLevel,
 	)
-	logger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1)).Sugar()
+	logger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(2)).Sugar()
 	return &defaultLog{
 		logger: logger,
 	}
