@@ -22,3 +22,4 @@ go.sum
 *.pprof
 
 .DS_Store
+*.log

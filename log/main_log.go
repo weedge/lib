@@ -10,11 +10,18 @@ type mainLog struct {
 	logger *zap.SugaredLogger
 }
 
-func newMainLog(config LoggerConfig, rotateByHour bool) *mainLog {
-	logger := initFileLogger(config.Path, config.MinLevel, config.AddCaller, rotateByHour).Sugar()
-	return &mainLog{
-		logger: logger,
+func newMainLogger(config LoggerConfig, rotateByHour bool) (*mainLog, error) {
+	logger, err := createZapLogger(config, rotateByHour)
+	if err != nil {
+		return nil, err
 	}
+	return &mainLog{
+		logger: logger.Sugar(),
+	}, nil
+}
+
+func (l *mainLog) Sync() {
+	_ = l.logger.Sync()
 }
 
 func (l *mainLog) Info(args ...interface{}) {

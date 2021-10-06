@@ -12,7 +12,7 @@ import (
 	"github.com/weedge/lib/log"
 )
 
-// @todo: add metrics write to log; add trace interceptor;
+// @todo: add metrics write to log; add tapper interceptor;
 
 type Producer struct {
 	pType         string //sync(default),async

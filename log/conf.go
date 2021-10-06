@@ -31,7 +31,7 @@ func IsExist(path string) bool {
 	return err == nil || os.IsExist(err)
 }
 
-func LoggerConfigAsFile(filename string) (*LogConfig, error) {
+func getLogConfig(filename string) (*LogConfig, error) {
 	if !IsExist(filename) {
 		return &LogConfig{}, nil
 	}

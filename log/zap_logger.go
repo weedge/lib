@@ -6,28 +6,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/weedge/lib/log/encoder"
 
-	"github.com/lestrrat/go-file-rotatelogs"
+	"github.com/lestrrat-go/file-rotatelogs"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-func getZapLoggers(conf *LogConfig) (map[string]*zap.Logger, error) {
-	res := make(map[string]*zap.Logger)
-	for _, loggerConf := range conf.Logs {
-		logger, err := createLogger(loggerConf, conf.RotateByHour)
-		if err != nil {
-			return nil, err
-		}
-		res[loggerConf.Logger] = logger
-	}
-	return res, nil
-}
-
-func createLogger(config LoggerConfig, rotateByHour bool) (*zap.Logger, error) {
+func createZapLogger(config LoggerConfig, rotateByHour bool) (*zap.Logger, error) {
 	switch strings.ToLower(config.Policy) {
 	case "file":
 		if len(config.Path) <= 0 {
@@ -80,7 +69,7 @@ func initFileLogger(logPath string, minLevel string, addCaller, rotateByHour boo
 	level := getLevel(minLevel)
 	core := zapcore.NewCore(encoder.NewSelfEncoder(encoderConfig), w, level)
 	if addCaller {
-		return zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
+		return zap.New(core, zap.AddCaller(), zap.AddCallerSkip(2))
 	} else {
 		return zap.New(core)
 	}
@@ -96,24 +85,22 @@ func getDefaultEncoderConfig() zapcore.EncoderConfig {
 }
 
 func getWriter(logPath string, rotateByHour bool) zapcore.WriteSyncer {
+	if err := createLogDir(logPath); err != nil {
+		panic(err)
+	}
+
 	/*
-		if err := createLogDir(logPath); err != nil {
+		logger, err := os.Create(logPath)
+		if err != nil {
 			panic(err)
 		}
 	*/
-
-	logger, err := os.Create(logPath)
-	if err != nil {
-		panic(err)
-	}
 	if rotateByHour == false {
-		/*
-			logger = &Logger{
-				Filename: logPath,
-				mu:       sync.Mutex{},
-			}
+		logger := &Logger{
+			Filename: logPath,
+			mu:       sync.Mutex{},
+		}
 
-		*/
 		return zapcore.AddSync(logger)
 	}
 	// save 14 days log, rotate log per hour::00

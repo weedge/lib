@@ -1,0 +1,48 @@
+{
+  "logs": [
+    {
+      "logger": "main",
+      "min_level": "debug",
+      "add_caller": true,
+      "policy": "filter",
+      "filters": [
+        {
+          "level": "debug,info,warn",
+          "path": "./log/zap.log"
+        },
+        {
+          "level": "error",
+          "path": "./log/zap.err.log"
+        }
+      ]
+    },
+    {
+      "logger": "access",
+      "min_level": "info",
+      "policy": "file",
+      "path": "./log/zap-access.log"
+    },
+    {
+      "logger": "biz",
+      "min_level": "info",
+      "add_caller": true,
+      "policy": "file",
+      "path": "./log/zap-biz.log"
+    },
+    {
+      "logger": "panic",
+      "min_level": "info",
+      "add_caller": true,
+      "policy": "file",
+      "path": "./log/zap-reco.log"
+    },
+    {
+      "logger": "rpc",
+      "min_level": "info",
+      "add_caller": true,
+      "policy": "file",
+      "path": "./log/zap-rpc.log"
+    }
+  ],
+  "rotateByHour": true
+}
