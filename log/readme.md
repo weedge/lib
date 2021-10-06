@@ -53,6 +53,11 @@ func GinLogger() gin.HandlerFunc
 // grpc access log
 func GrpcLogger() grpc.UnaryServerInterceptor
 
+// add log unit like bd odp addNotice
+func (p *logUnits) AddLogUnit(k string, v string)
+
+// multi go routine safe add
+func (p *LogUnits) AddLogUnitThreadSafe(k string, v string)
 
 ```
 

@@ -1,4 +1,4 @@
-package log
+package tapper
 
 import (
 	"strconv"
@@ -12,7 +12,7 @@ type logUnit struct {
 	value string
 }
 
-type logUnits struct {
+type LogUnits struct {
 	cmd          string
 	begTime      int64
 	units        []logUnit
@@ -20,37 +20,38 @@ type logUnits struct {
 	lock         sync.Mutex
 }
 
-func (p *logUnits) SetCmd(cmd string) {
+func (p *LogUnits) SetCmd(cmd string) {
 	p.cmd = cmd
 }
 
-func (p *logUnits) SetBeginTime() {
+func (p *LogUnits) SetBeginTime() {
 	p.begTime = time.Now().UnixNano()
 }
 
-func (p *logUnits) AddLogUnit(k string, v string) {
+// add log unit like bd odp addNotice
+func (p *LogUnits) AddLogUnit(k string, v string) {
 	p.units = append(p.units, logUnit{key: k, value: v})
 }
 
-func (p *logUnits) AddTimeCost(k string, tNs int64) {
+func (p *LogUnits) AddTimeCost(k string, tNs int64) {
 	p.timeCostUnit = append(p.timeCostUnit, logUnit{key: k, value: strconv.FormatInt(tNs/1000000, 10)})
 }
 
-// multi go routine 版本
-func (p *logUnits) AddLogUnitThreadSafe(k string, v string) {
+// multi go routine safe add
+func (p *LogUnits) AddLogUnitThreadSafe(k string, v string) {
 	p.lock.Lock()
 	p.units = append(p.units, logUnit{key: k, value: v})
 	p.lock.Unlock()
 }
 
 // multi go routine 版本
-func (p *logUnits) AddTimeCostThreadSafe(k string, tNs int64) {
+func (p *LogUnits) AddTimeCostThreadSafe(k string, tNs int64) {
 	p.lock.Lock()
 	p.timeCostUnit = append(p.timeCostUnit, logUnit{key: k, value: strconv.FormatInt(tNs/1000000, 10)})
 	p.lock.Unlock()
 }
 
-func (p *logUnits) String() string {
+func (p *LogUnits) String() string {
 	endTime := time.Now().UnixNano()
 	//var str string
 	var buf strings.Builder
@@ -73,7 +74,7 @@ func (p *logUnits) String() string {
 	return buf.String()
 }
 
-func (p *logUnits) SerializeTimeCost() string {
+func (p *LogUnits) SerializeTimeCost() string {
 	var buf strings.Builder
 	buf.WriteString("[")
 	for idx := range p.timeCostUnit {
@@ -90,7 +91,7 @@ func (p *logUnits) SerializeTimeCost() string {
 	return buf.String()
 }
 
-func (p *logUnits) MergeLogUnit(o *logUnits, prefix string) {
+func (p *LogUnits) MergeLogUnit(o *LogUnits, prefix string) {
 	p.lock.Lock()
 	for i := range o.units {
 		unit := o.units[i]
