@@ -21,7 +21,9 @@
 
 - [x] [asynctask](https://github.com/weedge/lib/tree/main/pool/asynctask) : 异步执行单一相同任务，回调错误处理
 
-- [ ] [runtimer](https://github.com/weedge/lib/tree/main/runtimer): 对goroutine运行异常的封装，以及获取goroutine运行时调用的堆栈信息
+- [x] [runtimer](https://github.com/weedge/lib/tree/main/runtimer): 对goroutine运行异常的封装，以及获取goroutine运行时调用的堆栈信息
+
+- [x] [chain](https://github.com/weedge/lib/tree/main/chain): 任务链式执行管理
 
 - [ ] [balance](https://github.com/weedge/lib/tree/main/balance): 负载均衡算法，一致性hash, rr, wrr 等
 
