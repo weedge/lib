@@ -27,6 +27,7 @@ const (
 	UA        = "ua"
 	HOST      = "host"
 	URI       = "uri"
+	TRACE     = "trace"
 	NOTICES   = "notice"
 	MONITOR   = "monitor"
 	RESPONSE  = "response"
@@ -96,7 +97,7 @@ func AddIgnoreReqUri(uri ...string) {
 	IgnoreReqUris = append(IgnoreReqUris, uri...)
 }
 
-// access日志打印
+// gin access log
 func GinLogger() gin.HandlerFunc {
 	// 本地IP
 	// 当前模块名
@@ -113,8 +114,7 @@ func GinLogger() gin.HandlerFunc {
 		body, _ := ioutil.ReadAll(c.Request.Body)
 		c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 
-		// 获取当前context
-		// tracer可选配
+		// 获取当前context trace log
 		traceLog, _ := tapper.GetTraceLogFromGinContext(c)
 
 		blw := new(bodyLogWriter)
@@ -166,6 +166,7 @@ func GinLogger() gin.HandlerFunc {
 		// 执行时间 单位:微秒
 		latency := end.Sub(start).Nanoseconds() / 1e3
 
+		_, trace := tapper.GetTraceFromContext(c)
 		_, notice := tapper.GetNoticeFromContext(c)
 		_, monitor := tapper.GetMonitorFromContext(c)
 
@@ -180,6 +181,7 @@ func GinLogger() gin.HandlerFunc {
 			zap.String("request_param", _trancate(bodyStr, MaxReqParamLen)),
 			zap.String(UA, c.Request.UserAgent()),
 			zap.String(HOST, c.Request.Host),
+			zap.String(TRACE, trace.Marshal()),
 			zap.String(NOTICES, notice.Marshal()),
 			zap.String(MONITOR, monitor.Marshal()),
 			zap.Int(CODE, c.Writer.Status()),
@@ -191,7 +193,7 @@ func GinLogger() gin.HandlerFunc {
 	}
 }
 
-// access日志打印
+// grpc access log
 func GrpcLogger() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		// 开始时间

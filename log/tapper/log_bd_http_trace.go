@@ -1,15 +1,12 @@
 package tapper
 
 import (
-	"bytes"
 	"context"
 	"strconv"
+	"strings"
+	"time"
 
-	"go.uber.org/atomic"
-)
-
-const (
-	TRACECTX = "TRACECTX"
+	"github.com/gin-gonic/gin"
 )
 
 const (
@@ -45,50 +42,39 @@ const (
 var Project = ""
 var _USER_AGENT = "ral/go "
 
-type TraceLog struct {
-	SpanNum atomic.Int64 //用于计算本地spanid自增拼接
-	LogId   string       // X_bd_logid
-	SpanId  string       // X_bd_spanid
-	UniqId  string       // X_bd_uniqid
-
-	UserIP  string // X_bd_userip
-	Product string // X_bd_product
-
-	Caller string // X_bd_module
-	Refer  string // X_bd_caller_uri,
-	Path   string // 当前请求的地址，用作请求下游时，设置成refer
-
-	NmqTransId string //nmq推送uri里的tranid参数，如：achilles/v3/ticker/commit?cmdno=870010&topic=core&transid=1
+// 生成logId
+func GenLogId() string {
+	now := time.Now()
+	logId := ((now.UnixNano()*1e5 + now.UnixNano()/1e7) & 0x7FFFFFFF) | 0x80000000
+	return strconv.FormatInt(logId, 10)
 }
 
-func (tl *TraceLog) FormatTraceString() string {
-	spidSuffixNum := tl.SpanNum.Inc()
-	bf := bytes.Buffer{}
-	bf.WriteString(" [logId:")
-	bf.WriteString(tl.LogId)
-	bf.WriteString("] [module:")
-	bf.WriteString(tl.Caller)
-	bf.WriteString("] [spanid:")
-	spanId := ""
-	if len(tl.SpanId) > 0 {
-		spanId = tl.SpanId + "." + strconv.FormatInt(spidSuffixNum, 10)
+func SetTraceLogFromGinHeader(c *gin.Context) *TraceLog {
+	traceLog := &TraceLog{}
+	//获取当前LogId
+	bdLogId := c.GetHeader(HTTP_KEY_TRACE_ID)
+	if bdLogId != "" && bdLogId != "0" {
+		traceLog.LogId = strings.TrimSpace(bdLogId)
 	} else {
-		spanId = strconv.FormatInt(spidSuffixNum, 10)
+		traceLog.LogId = GenLogId()
 	}
-	bf.WriteString(spanId)
-	if len(tl.NmqTransId) > 0 {
-		bf.WriteString("] [nmq_transid:")
-		bf.WriteString(tl.NmqTransId)
-	}
-	bf.WriteString("]")
-	return bf.String()
-}
+	//获取调用者
+	traceLog.Caller = c.GetHeader(HTTP_KEY_CALLER)
+	//获取调用者refer
+	//traceLog.Refer = c.GetHeader(HTTP_KEY_CALLER_URI)
+	//调用userip
+	traceLog.UniqId = c.GetHeader(HTTP_KEY_UNIQ_ID)
+	//获取当前的调用接口路径
+	traceLog.Path = c.Request.URL.Path
 
-func (tl *TraceLog) GetCurrentSpanId() string {
-	if len(tl.SpanId) > 0 {
-		return tl.SpanId + "." + strconv.FormatInt(tl.SpanNum.Load(), 10)
-	}
-	return strconv.FormatInt(tl.SpanNum.Load(), 10)
+	//设置mq的请求transid
+	traceLog.MqTransId = c.Query("transid")
+
+	//全程透传
+	traceLog.UserIP = c.GetHeader(HTTP_KEY_USERIP)
+	traceLog.Product = c.GetHeader(HTTP_KEY_PRODUCT)
+	c.Set(TRACECTX, traceLog)
+	return traceLog
 }
 
 func SetTraceHeaderByGinContext(ctx context.Context, header map[string]string) map[string]string {

@@ -19,16 +19,16 @@
 // default log path for log.json undefined log path
 func Setup(projectName string, confPath string, defaultLogPath string) error 
 
-AccessInfo(msg string, fields ...zap.Field)
+func AccessInfo(msg string, fields ...zap.Field)
 
-Info(args ...interface{})
-Debug(args ...interface{})
-Warn(args ...interface{})
-Error(args ...interface{})
-Infof(format string, args ...interface{})
-Debugf(format string, args ...interface{})
-Warnf(format string, args ...interface{})
-Errorf(format string, args ...interface{})
+func Info(args ...interface{})
+func Debug(args ...interface{})
+func Warn(args ...interface{})
+func Error(args ...interface{})
+func Infof(format string, args ...interface{})
+func Debugf(format string, args ...interface{})
+func Warnf(format string, args ...interface{})
+func Errorf(format string, args ...interface{})
 func RpcInfo(params ...interface{})
 func RpcInfof(format string, params ...interface{})
 func Recover(v ...interface{})
@@ -37,6 +37,16 @@ func Recoverf(format string, params ...interface{})
 // flush main, biz, access, panic, rpc log
 // Sync flushes any buffered log entries.
 func FlushLog() 
+
+// access log middleware
+
+// add ignore request uri, don't to tapper log
+func AddIgnoreReqUri(uri ...string)
+// gin access log
+func GinLogger() gin.HandlerFunc
+// grpc access log
+func GrpcLogger() grpc.UnaryServerInterceptor
+
 
 ```
 
