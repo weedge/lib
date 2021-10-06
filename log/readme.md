@@ -17,7 +17,13 @@
 // project name for tapper log
 // log.json config path,
 // default log path for log.json undefined log path
-func Setup(projectName string, confPath string, defaultLogPath string) error 
+// tapper user defined trace log obj
+func Setup(projectName string, confPath string, defaultLogPath string, traceLogger tapper.ITraceLog) error
+type ITraceLog interface {
+	SetTraceLogFromGinHeader(c *gin.Context) *TraceLog
+}
+var TraceLogger ITraceLog // eg: BDTraceLog log_bd_http_trace.go
+
 
 func AccessInfo(msg string, fields ...zap.Field)
 

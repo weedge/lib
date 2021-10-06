@@ -3,6 +3,7 @@ package log
 
 import (
 	"fmt"
+	"github.com/weedge/lib/log/tapper"
 	"go.uber.org/zap"
 
 	"path/filepath"
@@ -12,11 +13,15 @@ import (
 // project name for tapper log
 // log.json config path,
 // default log path for log.json undefined log path
-func Setup(projectName string, confPath string, defaultLogPath string) error {
+// tapper user defined trace log obj
+func Setup(projectName string, confPath string, defaultLogPath string, traceLogger tapper.ITraceLog) error {
 	logConfPath := filepath.Join(confPath, defaultLogConfFileName)
 	config, err := getLogConfig(logConfPath)
 	if err != nil {
 		return err
+	}
+	if traceLogger != nil {
+		tapper.TraceLogger = traceLogger
 	}
 
 	return createLogger(config, projectName, defaultLogPath)
@@ -152,4 +157,3 @@ func FlushLog() {
 		rpcLogger.Sync()
 	}
 }
-

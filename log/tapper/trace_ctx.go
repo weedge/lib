@@ -157,5 +157,6 @@ func GetTraceLogFromGinContext(ctx context.Context) (*TraceLog, bool) {
 		}
 	}
 
-	return SetTraceLogFromGinHeader(c), true
+	return TraceLogger.SetTraceLogFromGinHeader(c), true
 }
+

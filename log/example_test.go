@@ -54,7 +54,7 @@ func ExampleAccessInfo() {
 }
 
 func ExampleSetup() {
-	err := Setup("testProject", "./", "./log")
+	err := Setup("testProject", "./", "./log", nil)
 	if err != nil {
 		println(err)
 	}

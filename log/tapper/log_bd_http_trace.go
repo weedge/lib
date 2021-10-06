@@ -42,6 +42,9 @@ const (
 var Project = ""
 var _USER_AGENT = "ral/go "
 
+type BDTraceLog struct {
+}
+
 // 生成logId
 func GenLogId() string {
 	now := time.Now()
@@ -49,7 +52,7 @@ func GenLogId() string {
 	return strconv.FormatInt(logId, 10)
 }
 
-func SetTraceLogFromGinHeader(c *gin.Context) *TraceLog {
+func (l *BDTraceLog) SetTraceLogFromGinHeader(c *gin.Context) *TraceLog {
 	traceLog := &TraceLog{}
 	//获取当前LogId
 	bdLogId := c.GetHeader(HTTP_KEY_TRACE_ID)
