@@ -51,10 +51,10 @@ it.bucket = it.startBucket
 
 #### 功能
 
-- [ ] 支持map[int64]int64 key/value的升/降排序: SortIntIntMapByValue, SortIntIntMapByValueDesc, SortIntIntMapByKey, SortIntIntMapByKeyDesc
-- [ ] 支持map[int64]string key/value的升/降排序: SortIntStringMapByValue, SortIntStringMapByValueDesc, SortIntStringMapByKey, SortIntStringMapByKeyDesc
-- [ ] 支持map[string]string key/value的升/降排序: SortStringStringMapByValue, SortStringStringMapByValueDesc, SortStringStringMapByKey, SortStringStringMapByKeyDesc
-- [ ] 支持map[string]int64 key/value的升/降排序: SortStringIntMapByValue, SortStringIntMapByValueDesc, SortStringIntMapByKey, SortStringIntMapByKeyDesc
+- [x] 支持map[int64]int64 key/value的升/降排序: SortIntIntMapByValue, SortIntIntMapByValueDesc, SortIntIntMapByKey, SortIntIntMapByKeyDesc
+- [x] 支持map[int64]string key/value的升/降排序: SortIntStringMapByValue, SortIntStringMapByValueDesc, SortIntStringMapByKey, SortIntStringMapByKeyDesc
+- [x] 支持map[string]string key/value的升/降排序: SortStringStringMapByValue, SortStringStringMapByValueDesc, SortStringStringMapByKey, SortStringStringMapByKeyDesc
+- [x] 支持map[string]int64 key/value的升/降排序: SortStringIntMapByValue, SortStringIntMapByValueDesc, SortStringIntMapByKey, SortStringIntMapByKeyDesc
 
 #### 总结
 
