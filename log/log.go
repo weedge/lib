@@ -133,6 +133,8 @@ func Recoverf(format string, params ...interface{}) {
 	defaultLogger.Error(fmt.Sprint(params...))
 }
 
+// flush main, biz, access, panic, rpc log
+// Sync flushes any buffered log entries.
 func FlushLog() {
 	if mainLogger != nil {
 		mainLogger.Sync()
