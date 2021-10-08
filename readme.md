@@ -27,7 +27,7 @@
 
 - [ ] [balance](https://github.com/weedge/lib/tree/main/balance): 负载均衡算法，一致性hash, rr, wrr 等
 
-- [ ] cache: 本地缓存[patrickmn/go-cache](https://github.com/patrickmn/go-cache), [coocood/freecache](https://github.com/coocood/freecache)，[hashicorp/golang-lru](https://github.com/hashicorp/golang-lru)
+- [ ] cache: 本地缓存[patrickmn/go-cache](https://github.com/patrickmn/go-cache), [coocood/freecache](https://github.com/coocood/freecache)，[hashicorp/golang-lru](https://github.com/hashicorp/golang-lru) [allegro/bigcache](https://github.com/allegro/bigcache)
 
 - [ ] net: 网络工具库
 

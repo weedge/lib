@@ -10,4 +10,5 @@
 #### 参考
 
 1. [concurrent-map](https://github.com/orcaman/concurrent-map)
+2. [allegro/bigcache](https://github.com/allegro/bigcache)
 
