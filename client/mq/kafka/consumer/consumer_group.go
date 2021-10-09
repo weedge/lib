@@ -46,6 +46,7 @@ func NewConsumerGroup(name string, msg IConsumerMsg, authOpts []auth.Option, opt
 
 	consumer.ready = make(chan bool)
 	consumer.config = sarama.NewConfig()
+	consumer.config.Consumer.Return.Errors = true
 	consumer.topicList = consumerOpts.topicList
 	consumer.config.Version, err = sarama.ParseKafkaVersion(consumerOpts.version)
 	if err != nil {
