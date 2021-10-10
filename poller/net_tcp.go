@@ -64,6 +64,16 @@ func accept() (nfd int, addr string, err error) {
 		return
 	}
 
+	err = syscall.SetsockoptInt(nfd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, 1)
+	if err != nil {
+		return
+	}
+
+	err = syscall.SetsockoptInt(nfd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, 1)
+	if err != nil {
+		return
+	}
+
 	err = addRead(nfd)
 	if err != nil {
 		return
