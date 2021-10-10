@@ -2,6 +2,7 @@ package poller
 
 import (
 	"errors"
+	"time"
 )
 
 var (
@@ -16,3 +17,8 @@ type Handler interface {
 	OnClose(c *Conn, err error)      // OnClose 当客户端主动断开链接或者超时时回调,err返回关闭的原因
 }
 
+// defaultTCPKeepAlive is a default constant value for TCPKeepAlive times
+// See golang.org/issue/31510
+const (
+	defaultTCPKeepAlive = 15 * time.Second
+)

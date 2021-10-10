@@ -4,6 +4,8 @@ package poller
 
 import (
 	"golang.org/x/sys/unix"
+	"syscall"
+	"time"
 )
 
 var (
@@ -130,6 +132,9 @@ const (
 	EVClose = EV_EOF | EV_DELETE
 )
 
+// syscall.TCP_KEEPINTVL is missing on some darwin architectures.
+const sysTCP_KEEPINTVL = 0x101
+
 func createPoller() (err error) {
 	kqueueFD, err = unix.Kqueue()
 	if err != nil {
@@ -182,4 +187,24 @@ func getEvents() ([]event, error) {
 	}
 
 	return events, nil
+}
+
+func setSockKeepAliveOptions(fd int, d time.Duration) (err error) {
+	err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, 1)
+	if err != nil {
+		return
+	}
+
+	secs := int(roundDurationUp(d, time.Second))
+	err = syscall.SetsockoptInt(fd, syscall.IPPROTO_TCP, sysTCP_KEEPINTVL, secs)
+	if err != nil {
+		return
+	}
+
+	err = syscall.SetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE, secs)
+	if err != nil {
+		return
+	}
+
+	return
 }

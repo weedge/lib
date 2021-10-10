@@ -7,12 +7,13 @@ import (
 
 // options Server初始化参数
 type options struct {
-	readBufferLen   int           // 所读取的客户端包的最大长度，客户端发送的包不能超过这个长度，默认值是1024字节
-	acceptGNum      int           // 处理接受请求的goroutine数量
-	ioGNum          int           // 处理io的goroutine数量
-	ioEventQueueLen int           // io事件队列长度
-	timeoutTicker   time.Duration // 超时时间检查间隔
-	timeout         time.Duration // 超时时间
+	readBufferLen     int           // 所读取的客户端包的最大长度，客户端发送的包不能超过这个长度，默认值是1024字节
+	acceptGNum        int           // 处理接受请求的goroutine数量
+	ioGNum            int           // 处理io的goroutine数量
+	ioEventQueueLen   int           // io事件队列长度
+	timeoutTicker     time.Duration // 超时时间检查间隔
+	timeout           time.Duration // 超时时间
+	keepaliveInterval time.Duration // tcp keepalive interval
 }
 
 type Option interface {
@@ -85,6 +86,15 @@ func WithTimeout(timeoutTicker, timeout time.Duration) Option {
 
 		o.timeoutTicker = timeoutTicker
 		o.timeout = timeout
+	})
+}
+
+func WithKeepAliveInterval(d time.Duration) Option {
+	return newFuncServerOption(func(o *options) {
+		if d <= 0 {
+			panic("keepalive interval must greater than 0")
+		}
+		o.keepaliveInterval = d
 	})
 }
 

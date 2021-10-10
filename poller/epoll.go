@@ -4,6 +4,7 @@ package poller
 
 import (
 	"syscall"
+	"time"
 
 	"golang.org/x/sys/unix"
 )
@@ -64,4 +65,24 @@ func getEvents() ([]event, error) {
 	}
 
 	return events, nil
+}
+
+func setSockKeepAliveOptions(fd int, d time.Duration) (err error) {
+	err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, 1)
+	if err != nil {
+		return
+	}
+
+	secs := int(roundDurationUp(d, time.Second))
+	err = syscall.SetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, secs)
+	if err != nil {
+		return
+	}
+
+	err = syscall.SetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE, secs)
+	if err != nil {
+		return
+	}
+
+	return
 }

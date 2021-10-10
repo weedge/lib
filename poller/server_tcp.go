@@ -47,7 +47,7 @@ func NewServer(address string, handler Handler, decoder Decoder, opts ...Option)
 		},
 	}
 
-	// 初始化epoll网络
+	// listen and create poller
 	err := listen(address)
 	if err != nil {
 		log.Error(err)
@@ -145,7 +145,7 @@ func (s *Server) accept() {
 		case <-s.stop:
 			return
 		default:
-			nfd, addr, err := accept()
+			nfd, addr, err := accept(s.options.keepaliveInterval)
 			if err != nil {
 				log.Error(err)
 				continue
@@ -227,4 +227,9 @@ func (s *Server) checkTimeout() {
 			}
 		}
 	}()
+}
+
+// roundDurationUp rounds d to the next multiple of to.
+func roundDurationUp(d time.Duration, to time.Duration) time.Duration {
+	return (d + to - 1) / to
 }

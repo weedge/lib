@@ -3,6 +3,7 @@ package poller
 import (
 	"fmt"
 	"syscall"
+	"time"
 
 	"github.com/weedge/lib/log"
 )
@@ -52,7 +53,7 @@ func listen(address string) error {
 	return nil
 }
 
-func accept() (nfd int, addr string, err error) {
+func accept(d time.Duration) (nfd int, addr string, err error) {
 	nfd, sa, err := syscall.Accept(listenFD)
 	if err != nil {
 		return
@@ -69,7 +70,10 @@ func accept() (nfd int, addr string, err error) {
 		return
 	}
 
-	err = syscall.SetsockoptInt(nfd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, 1)
+	if d == 0 {
+		d = defaultTCPKeepAlive
+	}
+	err = setSockKeepAliveOptions(nfd, d)
 	if err != nil {
 		return
 	}
