@@ -117,4 +117,6 @@ func (p *Producer) Close()
 4. [KIP-500: Replace ZooKeeper with a Self-Managed Metadata Quorum](https://cwiki.apache.org/confluence/display/KAFKA/KIP-500%3A+Replace+ZooKeeper+with+a+Self-Managed+Metadata+Quorum)
 5. [KRaft (aka KIP-500) mode Early Access Release](https://github.com/apache/kafka/blob/6d1d68617ecd023b787f54aafc24a4232663428d/config/kraft/README.md)
 6. [2.8 版本去掉zk简单操作视频](https://asciinema.org/a/403794/embed)
-7. [SSL/TSL安全认证通信](https://mp.weixin.qq.com/s/ibwNtDc2zd2tdhMN7iROJw)
+7. [SSL/TSL安全认证通信](https://mp.weixin.qq.com/s/ibwNtDc2zd2tdhMN7iROJ)
+8. [知乎基于Kubernetes的kafka平台的设计和实现](https://zhuanlan.zhihu.com/p/36366473)
+
