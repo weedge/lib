@@ -22,4 +22,5 @@
 
 1. [etcd: 从应用场景到实现原理的全方位解读](https://www.infoq.cn/article/etcd-interpretation-application-scenario-implement-principle/)
 2. [grpc-example-features](https://github.com/grpc/grpc-go/tree/master/examples/features)
+3. [gRPC 长连接在微服务业务系统中的实践](https://www.infoq.cn/article/cpxr35bwjttgncltyekz)
 
