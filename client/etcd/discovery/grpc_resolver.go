@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"github.com/weedge/lib/runtimer"
 	"strings"
 	"time"
 
@@ -71,7 +72,9 @@ func (b *GrpcResolver) Build(target resolver.Target, cc resolver.ClientConn, opt
 		t:      time.NewTicker(defaultFreq),
 	}
 
-	go r.start(context.Background())
+	runtimer.GoSafely(nil, false, func() {
+		r.start(context.Background())
+	}, nil, nil)
 	r.ResolveNow(resolver.ResolveNowOptions{})
 
 	return r, nil
@@ -105,7 +108,10 @@ func (r *etcdResolver) start(ctx context.Context) {
 		case <-r.t.C:
 			r.ResolveNow(resolver.ResolveNowOptions{})
 		case <-r.stopCh:
-			w.Close()
+			err := w.Close()
+			if err != nil {
+				log.Errorf("etcd watcher close err", err.Error())
+			}
 			return
 		case wresp := <-rch:
 			for _, ev := range wresp.Events {
