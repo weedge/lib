@@ -20,4 +20,5 @@ require (
 	go.uber.org/zap v1.19.1
 	golang.org/x/sys v0.0.0-20210603081109-ebe580a85c40
 	google.golang.org/grpc v1.32.0
+	google.golang.org/protobuf v1.26.0-rc.1
 )
