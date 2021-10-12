@@ -16,3 +16,9 @@
 
 - [ ] 服务元数据配置管理;
 
+
+
+#### reference
+
+1. [etcd: 从应用场景到实现原理的全方位解读](https://www.infoq.cn/article/etcd-interpretation-application-scenario-implement-principle/)
+
