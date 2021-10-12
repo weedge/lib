@@ -35,7 +35,7 @@
 
 - [x] [client-mq-kafka](https://github.com/weedge/lib/tree/main/client/mq/kafka): kafka 高可用分区存放, 后续会去掉zk管理元数据依赖(通过kraft Metadata clusters mode管理元数据), 三方库 [Shopify/sarama](https://github.com/Shopify/sarama) (sarama [issue#901](https://github.com/Shopify/sarama/issues/901)支持事务操作的讨论, v1.19.0优化了group consumer [pr#1099](https://github.com/Shopify/sarama/pull/1099), 在一些场景支持的不够好, [不推荐场景](https://help.aliyun.com/document_detail/266782.html)) [confluent-kafka-go](https://github.com/confluentinc/confluent-kafka-go) (支持事务操作)
 
-- [ ] client-etcd: 使用etcd提供分布式锁，服务发现，服务元数据配置等
+- [ ] [client-etcd](https://github.com/weedge/lib/tree/main/client/etcd): 使用etcd提供分布式锁，服务发现，服务元数据配置等
 
 - [ ] zerocopy: 利用底层系统的零拷贝技术，mmap: [edsrzf/mmap-go](https://github.com/edsrzf/mmap-go) sendfile, splice,三方库封装使用
 

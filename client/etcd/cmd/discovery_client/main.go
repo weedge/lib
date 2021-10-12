@@ -13,12 +13,25 @@ import (
 	"github.com/weedge/lib/log"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 const defaultService = "test-service"
 
+var kacp = keepalive.ClientParameters{
+	Time:                10 * time.Second, // send pings every 10 seconds if there is no activity
+	Timeout:             time.Second,      // wait 1 second for ping ack before considering the connection dead
+	PermitWithoutStream: true,             // send pings even without active streams
+}
+
 func testService(service string, stream bool) {
-	conn, err := grpc.Dial(fmt.Sprintf("%s:///%s", discovery.Scheme, service), grpc.WithBlock(), grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`), grpc.WithInsecure())
+	// https://github.com/grpc/grpc-go/blob/master/examples/features/
+	conn, err := grpc.Dial(
+		fmt.Sprintf("%s:///%s", discovery.Scheme, service),
+		grpc.WithBlock(),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
+		grpc.WithInsecure(),
+		grpc.WithKeepaliveParams(kacp))
 	if err != nil {
 		log.Errorf("did not connect: %v", err)
 		return
