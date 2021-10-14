@@ -118,8 +118,10 @@ func (r *etcdResolver) start(ctx context.Context) {
 				switch ev.Type {
 				case mvccpb.PUT:
 					r.store[string(ev.Kv.Value)] = struct{}{}
+					log.Info("etcd watcher put kv", string(ev.Kv.Key), string(ev.Kv.Value))
 				case mvccpb.DELETE:
 					delete(r.store, strings.Replace(string(ev.Kv.Key), target+"/", "", 1))
+					log.Info("etcd watcher delete kv", string(ev.Kv.Key), string(ev.Kv.Value))
 				}
 			}
 			r.updateTargetState()

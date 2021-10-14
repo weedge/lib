@@ -7,6 +7,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// grafana dashboard https://grafana.com/grafana/dashboards/10826
 func HttpMetrics(handler http.Handler) {
 	switch r := handler.(type) {
 	case *gin.Engine:
