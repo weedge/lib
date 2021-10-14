@@ -25,5 +25,5 @@
 2. [grpc-example-features](https://github.com/grpc/grpc-go/tree/master/examples/features)
 3. [grpc-core-concepts](https://grpc.io/docs/what-is-grpc/core-concepts/)
 4. [gRPC 长连接在微服务业务系统中的实践](https://www.infoq.cn/article/cpxr35bwjttgncltyekz)
-5. [35 | 如何在客户端实现服务的负载均衡？](http://gk.link/a/10B1p)
+5. [客户端负载均衡](http://icyfenix.cn/distribution/connect/load-balancing.html)
 
