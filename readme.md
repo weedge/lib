@@ -41,7 +41,7 @@
 
 - [ ] [limiter](https://github.com/weedge/lib/tree/main/limiter): 服务提供方限流算法，防止服务过载策略，单机 固定/滑动时间窗口限流算法，漏桶([uber-go/ratelimit]( https://github.com/uber-go/ratelimit) )/( [juju/ratelimit](https://github.com/juju/ratelimit) )令牌桶算法，分布式限流算法(redis 计数/添加token，通常在流量入口网关层处理，nginx+lua, golang) 对三方开源服务在业务的基础上进行封装；
 
-- [ ] breaker: 服务消费方调用服务熔断机制，开源实现：[afex/hystrix-go](http://github.com/afex/hystrix-go)  [sony/gobreaker](http://github.com/sony/gobreaker)  对三方开源服务在业务的基础上进行封装；
+- [ ] [breaker](https://github.com/weedge/lib/tree/main/breaker): 服务消费方调用服务熔断机制，开源实现：[afex/hystrix-go](http://github.com/afex/hystrix-go)  [sony/gobreaker](http://github.com/sony/gobreaker)  对三方开源服务在业务的基础上进行封装；
 
 - [x] [log](https://github.com/weedge/lib/tree/main/log): 日志库, 基于uber [zap](https://github.com/uber-go/zap) 库，日志按时间切割[lestrrat-go/file-rotatelogs](github.com/lestrrat-go/file-rotatelogs)；满足基础日志，访问日志，请求三方日志，panic日志，启动日志，
 
