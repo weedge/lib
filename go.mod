@@ -5,7 +5,8 @@ go 1.12
 require (
 	github.com/Shopify/sarama v1.26.4
 	github.com/gin-gonic/gin v1.7.3
-	github.com/gogo/protobuf v1.3.1
+	github.com/go-redis/redis v6.15.9+incompatible
+	github.com/go-redis/redis/v8 v8.11.4
 	github.com/json-iterator/go v1.1.11
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
 	github.com/lestrrat-go/strftime v1.0.5 // indirect
@@ -20,5 +21,6 @@ require (
 	go.uber.org/zap v1.19.1
 	golang.org/x/sys v0.0.0-20210603081109-ebe580a85c40
 	google.golang.org/grpc v1.32.0
-	google.golang.org/protobuf v1.26.0-rc.1
+	google.golang.org/protobuf v1.26.0
+
 )
