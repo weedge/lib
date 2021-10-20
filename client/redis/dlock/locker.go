@@ -2,11 +2,11 @@ package dlock
 
 import (
 	"context"
-	"github.com/weedge/lib/runtimer"
 	"math/rand"
 	"time"
 
 	"github.com/weedge/lib/log"
+	"github.com/weedge/lib/runtimer"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -15,12 +15,12 @@ type RedisLocker struct {
 	rdb           *redis.Client
 	key           string
 	val           int
-	retryTimes    int
-	retryInterval time.Duration
+	retryTimes    int           // for block lock
+	retryInterval time.Duration // for block lock
 	expiration    time.Duration
-	tag           string
+	tag           string // logic tag
 	cancel        context.CancelFunc
-	isWatch       bool
+	isWatch       bool // is open watch to lease key ttl
 }
 
 // get rand value for del lock
@@ -29,6 +29,7 @@ func getRandValue() int {
 	return rand.Int()
 }
 
+// New get a RedisLocker instance
 func New(rdb *redis.Client, key, tag string, retryTimes int, retryInterval, expiration time.Duration, isWatch bool) *RedisLocker {
 	return &RedisLocker{
 		rdb:           rdb,
@@ -43,20 +44,21 @@ func New(rdb *redis.Client, key, tag string, retryTimes int, retryInterval, expi
 	}
 }
 
-func (m *RedisLocker) TryLock(ctx context.Context) (isGainLock bool) {
-	log.Infof("%s %s try lock", m.key, m.tag)
-
-	set, err := rdb.SetNX(ctx, m.key, m.val, expiration).Result()
+// TryLock unblock try lock
+func (m *RedisLocker) TryLock(ctx context.Context) (err error, isGainLock bool) {
+	set, err := m.rdb.SetNX(ctx, m.key, m.val, m.expiration).Result()
 	if err != nil {
 		log.Errorf("err:%s", err.Error())
+		return
 	}
 
 	// retry lock
-	if set == false && m.retryLock(ctx) == false {
-		log.Errorf("%s %s server unavailable, try again later", m.key, m.tag)
+	if set == false {
+		log.Infof("%s %s try lock fail", m.key, m.tag)
 		return
 	}
-	log.Infof("%s %s try lock ok!", m.key, m.tag)
+
+	log.Infof("%s %s try lock ok", m.key, m.tag)
 
 	if m.isWatch {
 		var watchCtx context.Context
@@ -66,25 +68,66 @@ func (m *RedisLocker) TryLock(ctx context.Context) (isGainLock bool) {
 		}, nil, nil)
 	}
 
-	return set
+	return nil, set
 }
 
-func (m *RedisLocker) retryLock(ctx context.Context) (isGainLock bool) {
-	i := 1
-	for i <= retryTimes {
-		log.Infof("%s %s retry lock cn %d", m.key, m.tag, i)
-		set, err := rdb.SetNX(ctx, m.key, m.val, m.expiration).Result()
+// Lock block Lock util retryTimes per retryInterval
+func (m *RedisLocker) Lock(ctx context.Context) (err error, isGainLock bool) {
+	set, err := m.rdb.SetNX(ctx, m.key, m.val, m.expiration).Result()
+	if err != nil {
+		log.Errorf("err:%s", err.Error())
+		return
+	}
+
+	if set == false {
+		err, isGainLock = m.retryLock(ctx)
 		if err != nil {
-			log.Errorf("err:%s", err.Error())
+			return
 		}
 
+		if isGainLock == false {
+			log.Infof("%s %s lock fail", m.key, m.tag)
+			return
+		}
+	}
+	log.Infof("%s %s lock ok", m.key, m.tag)
+
+	if m.isWatch {
+		var watchCtx context.Context
+		watchCtx, m.cancel = context.WithCancel(context.Background())
+		runtimer.GoSafely(nil, false, func() {
+			m.watch(watchCtx)
+		}, nil, nil)
+	}
+
+	return nil, true
+}
+
+// retry lock util retry times by retry interval or gain lock return
+func (m *RedisLocker) retryLock(ctx context.Context) (err error, isGainLock bool) {
+	i := 1
+	var set bool
+	for {
+		if i > m.retryTimes {
+			break
+		}
+		if m.retryTimes > 0 {
+			log.Infof("%s %s retry lock cn %d", m.key, m.tag, i)
+			i++
+		}
+
+		set, err = m.rdb.SetNX(ctx, m.key, m.val, m.expiration).Result()
+		if err != nil {
+			return
+		}
 		if set == true {
-			return true
+			isGainLock = set
+			return
 		}
 
 		time.Sleep(m.retryInterval)
-		i++
 	}
+
 	return
 }
 
@@ -98,15 +141,15 @@ func (m *RedisLocker) watch(ctx context.Context) {
 			return
 		default:
 			// lease
-			rdb.PExpire(ctx, m.key, m.expiration)
+			m.rdb.PExpire(ctx, m.key, m.expiration)
 			time.Sleep(m.expiration / 2)
 		}
 	}
 }
 
+// UnLock unlock ok return true or false by lua script for atomic cmd(get->del)
 func (m *RedisLocker) UnLock(ctx context.Context) (isDel bool) {
 	lua := `
--- 如果当前值与锁值一致,删除key
 if redis.call('GET', KEYS[1]) == ARGV[1] then
 	return redis.call('DEL', KEYS[1])
 else
@@ -115,15 +158,17 @@ end
 `
 	scriptKeys := []string{m.key}
 
-	val, err := rdb.Eval(ctx, lua, scriptKeys, m.val).Result()
+	val, err := m.rdb.Eval(ctx, lua, scriptKeys, m.val).Result()
 	if err != nil {
 		log.Errorf("rdb.Eval error:%s", err.Error())
 		return
 	}
 
 	if val == int64(1) {
-		m.cancel()
-		log.Infof("%s %s del ok", m.key, m.tag)
+		if m.cancel != nil {
+			m.cancel()
+		}
+		log.Infof("%s %s unlock ok", m.key, m.tag)
 		isDel = true
 	}
 

@@ -27,7 +27,7 @@
 
 - [ ] [balance](https://github.com/weedge/lib/tree/main/balance): 负载均衡算法，一致性hash, rr, wrr 等
 
-- [ ] cache: 本地缓存[patrickmn/go-cache](https://github.com/patrickmn/go-cache), [coocood/freecache](https://github.com/coocood/freecache)，[hashicorp/golang-lru](https://github.com/hashicorp/golang-lru) [allegro/bigcache](https://github.com/allegro/bigcache)
+- [ ] cache: 本地缓存[patrickmn/go-cache](https://github.com/patrickmn/go-cache), [coocood/freecache](https://github.com/coocood/freecache)，[hashicorp/golang-lru](https://github.com/hashicorp/golang-lru) ，[allegro/bigcache](https://github.com/allegro/bigcache)，[go local cache algorithms benchmark](https://github.com/vmihailenco/go-cache-benchmark)
 
 - [ ] net: 网络工具库
 
@@ -35,7 +35,9 @@
 
 - [x] [client-mq-kafka](https://github.com/weedge/lib/tree/main/client/mq/kafka): kafka 高可用分区存放, 后续会去掉zk管理元数据依赖(通过kraft Metadata clusters mode管理元数据), 三方库 [Shopify/sarama](https://github.com/Shopify/sarama) (sarama [issue#901](https://github.com/Shopify/sarama/issues/901)支持事务操作的讨论, v1.19.0优化了group consumer [pr#1099](https://github.com/Shopify/sarama/pull/1099), 在一些场景支持的不够好, [不推荐场景](https://help.aliyun.com/document_detail/266782.html)) [confluent-kafka-go](https://github.com/confluentinc/confluent-kafka-go) (支持事务操作)
 
-- [ ] [client-etcd](https://github.com/weedge/lib/tree/main/client/etcd): 使用etcd提供分布式锁，服务发现，服务元数据配置等
+- [x] [client-etcd](https://github.com/weedge/lib/tree/main/client/etcd): 使用etcd提供分布式锁，服务发现，服务元数据配置等
+
+- [ ] [client-redis](https://github.com/weedge/lib/tree/main/client/redis):使用redis协议支持的命令提供分布式锁，缓存，限流等功能
 
 - [ ] zerocopy: 利用底层系统的零拷贝技术，mmap: [edsrzf/mmap-go](https://github.com/edsrzf/mmap-go) sendfile, splice,三方库封装使用
 
