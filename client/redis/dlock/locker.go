@@ -2,6 +2,7 @@ package dlock
 
 import (
 	"context"
+	"math"
 	"math/rand"
 	"time"
 
@@ -108,12 +109,15 @@ func (m *RedisLocker) retryLock(ctx context.Context) (err error, isGainLock bool
 	i := 1
 	var set bool
 	for {
-		if i > m.retryTimes {
+		if i > m.retryTimes && m.retryTimes > 0 {
 			break
 		}
-		if m.retryTimes > 0 {
-			log.Infof("%s %s retry lock cn %d", m.key, m.tag, i)
-			i++
+
+		log.Infof("%s %s retry lock cn %d", m.key, m.tag, i)
+		i++
+
+		if i == math.MaxInt32 {
+			i = 1
 		}
 
 		set, err = m.rdb.SetNX(ctx, m.key, m.val, m.expiration).Result()

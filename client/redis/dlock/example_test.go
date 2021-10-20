@@ -36,7 +36,7 @@ func MockTestTryLock(tag string) {
 }
 
 func MockTestLock(tag string) {
-	var retryTimes = 10
+	var retryTimes = -1
 	var retryInterval = time.Millisecond * 50
 	lockK := "EXAMPLE_LOCK"
 	expiration := time.Millisecond * 200
