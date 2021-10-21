@@ -13,7 +13,7 @@
   3. 客户端解析服务单元的ip列表，发给lb服务，存在单点问题，会成为整体服务的性能瓶颈；
   4. 容器化通过边车代理的负载均衡，和客户端服务部署在同一个pod, 通过虚拟化网络进行数据交互(unix domian socket)，网络消耗小， istio负载均衡模块通过envoy+polit实现，服务注册通过coreDNS, envoy 通过k8s部署在ingress 和 egress 中，用于pod中服务的注册和发现；
 
-- [x] 分布式锁，etcd clientv3 本身提供，直接使用就行;
+- [x] 分布式锁，etcd clientv3 本身提供，直接使用就行; 适用于严格可靠锁的场景，etcd满足CP系统，通过raft一致性协议保证
 
 - [ ] 服务元数据配置管理;
 

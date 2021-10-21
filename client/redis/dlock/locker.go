@@ -2,6 +2,7 @@ package dlock
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"math"
 	"math/rand"
 	"time"
@@ -15,7 +16,7 @@ import (
 type RedisLocker struct {
 	rdb           *redis.Client
 	key           string
-	val           int
+	val           interface{}
 	retryTimes    int           // for block lock
 	retryInterval time.Duration // for block lock
 	expiration    time.Duration
@@ -24,18 +25,29 @@ type RedisLocker struct {
 	isWatch       bool // is open watch to lease key ttl
 }
 
-// get rand value for del lock
-func getRandValue() int {
+type ILockerVal interface {
+	GetValue() interface{} // get rand value for del lock
+}
+
+type RandomVal struct{}
+
+func (v *RandomVal) GetValue() interface{} {
 	rand.Seed(time.Now().UnixNano())
 	return rand.Int()
 }
 
+type UUIDVal struct{}
+
+func (v *UUIDVal) GetValue() interface{} {
+	return uuid.NewString()
+}
+
 // New get a RedisLocker instance
-func New(rdb *redis.Client, key, tag string, retryTimes int, retryInterval, expiration time.Duration, isWatch bool) *RedisLocker {
+func New(rdb *redis.Client, key, tag string, val ILockerVal, retryTimes int, retryInterval, expiration time.Duration, isWatch bool) *RedisLocker {
 	return &RedisLocker{
 		rdb:           rdb,
 		key:           key,
-		val:           getRandValue(),
+		val:           val.GetValue(),
 		retryTimes:    retryTimes,
 		retryInterval: retryInterval,
 		expiration:    expiration,
@@ -144,7 +156,7 @@ func (m *RedisLocker) watch(ctx context.Context) {
 			log.Infof("%s %s task done, close watch", m.key, m.tag)
 			return
 		default:
-			// lease
+			// lease todo lua get ttl to add expire
 			m.rdb.PExpire(ctx, m.key, m.expiration)
 			time.Sleep(m.expiration / 2)
 		}

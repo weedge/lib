@@ -3,7 +3,9 @@ package dlock
 import (
 	"context"
 	"fmt"
+	"github.com/weedge/lib/strings"
 	"math/rand"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -22,7 +24,7 @@ func MockTestTryLock(tag string) {
 	lockK := "EXAMPLE_TRY_LOCK"
 	expiration := time.Millisecond * 200
 
-	locker := New(rdb, lockK, tag, retryTimes, retryInterval, expiration, true)
+	locker := New(rdb, lockK, tag, &UUIDVal{}, retryTimes, retryInterval, expiration, true)
 	err, isGainLock := locker.TryLock(context.Background())
 	if err != nil || isGainLock == false {
 		return
@@ -41,7 +43,7 @@ func MockTestLock(tag string) {
 	lockK := "EXAMPLE_LOCK"
 	expiration := time.Millisecond * 200
 
-	locker := New(rdb, lockK, tag, retryTimes, retryInterval, expiration, true)
+	locker := New(rdb, lockK, tag, &UUIDVal{}, retryTimes, retryInterval, expiration, true)
 	err, isGainLock := locker.Lock(context.Background())
 	if err != nil || isGainLock == false {
 		return
@@ -90,6 +92,41 @@ func ExampleRedisLocker_Lock() {
 		}(tag)
 	}
 	wg.Wait()
+
+	//output:
+	//
+}
+
+func Recover() {
+	if e := recover(); e != nil {
+		fmt.Printf("panic: %v, stack: %v\n", e, strings.BytesToString(debug.Stack()))
+	}
+}
+
+func ExampleRedisLocker_LockLongPanic() {
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer Recover()
+		var retryTimes = 5
+		var retryInterval = time.Millisecond * 50
+		lockK := "EXAMPLE_LOCK_WATCH"
+		expiration := time.Millisecond * 200
+		tag := "panic"
+
+		locker := New(rdb, lockK, tag, &UUIDVal{}, retryTimes, retryInterval, expiration, true)
+		defer locker.UnLock(context.Background())
+		err, isGainLock := locker.TryLock(context.Background())
+		if err != nil || isGainLock == false {
+			return
+		}
+
+		time.Sleep(20 * time.Second)
+		panic("test panic for lock watch")
+	}()
+	wg.Wait()
+	println("over")
 
 	//output:
 	//
