@@ -1,6 +1,7 @@
 package workerpool
 
 import (
+	"github.com/weedge/lib/runtimer"
 	"github.com/weedge/lib/strings"
 	"runtime"
 	"runtime/debug"
@@ -58,9 +59,10 @@ func (worker *Worker) execute() {
 					worker.timer.Reset(task.TimeOut)
 				}
 				taskDoResCh := make(chan bool, 1)
-				go func() {
+
+				runtimer.GoSafely(nil, false, func() {
 					taskDoResCh <- task.Do(task.InParam, task.OutParam)
-				}()
+				}, nil, nil)
 
 				select {
 				case <-worker.timer.C:
