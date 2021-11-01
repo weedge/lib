@@ -13,3 +13,4 @@
 ##### reference
 
 1. [一致性hash算法原理及golang实现](https://segmentfault.com/a/1190000013533592)
+
