@@ -4,8 +4,8 @@
 
 
 
-#### reference
+#### references
 
-1. [Stack Traces In Go](https://www.ardanlabs.com/blog/2015/01/stack-traces-in-go.html)
-2. [Scheduler Tracing In Go](https://www.ardanlabs.com/blog/2015/02/scheduler-tracing-in-go.html)
+1. [Stack Traces In Go](https://colobu.com/2016/04/19/Stack-Traces-In-Go/)
+2. [Scheduler Tracing In Go](https://colobu.com/2016/04/19/Scheduler-Tracing-In-Go/)
 
