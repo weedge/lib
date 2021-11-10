@@ -69,7 +69,7 @@ func (sl *SortedList) Range(start int, stop int) []*Element {
 	}
 }
 
-func (sl *SortedList) RangeByScore(min string, max string, limit bool, offset int, count int) []*Element {
+func (sl *SortedList) RangeByScore(min string, max string) []*Element {
 	if sl.Len() <= 0 {
 		return nil
 	}

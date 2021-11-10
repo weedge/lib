@@ -96,20 +96,20 @@ func (l *SortedList) limit(offset int, count int) []*skiplist.Element {
 	return res
 }
 
-func (sl *SortedList) RangeByScoreAsc(minScore string, maxScore string, limit bool, offset int, count int) []*skiplist.Element {
+func (sl *SortedList) RangeByScoreAsc(min string, max string) []*skiplist.Element {
 	if sl.Len() <= 0 {
 		return nil
 	}
-	if minRes, maxRes, err := sl.parseScoreLimit(minScore, maxScore); err != nil {
+	if minRes, maxRes, err := sl.parseScoreLimit(min, max); err != nil {
 		return nil
 	} else {
 		sl.lock.RLock()
 		defer sl.lock.RUnlock()
-		return sl.limitByScore(minRes, maxRes)
+		return sl.limitByKeyAsc(minRes, maxRes)
 	}
 }
 
-func (sl *SortedList) limitByScore(min string, max string) []*skiplist.Element {
+func (sl *SortedList) limitByKeyAsc(min string, max string) []*skiplist.Element {
 	res := []*skiplist.Element{}
 	for e := sl.list.Front(); e != nil && string(e.Key().([]byte)) <= max; e = e.Next() {
 		if string(e.Key().([]byte)) >= min {
@@ -129,20 +129,10 @@ func (sl *SortedList) AddBatchForStringValScores(values [][]byte) error {
 	defer sl.lock.Unlock()
 	for i := 0; i < len(values); i += 2 {
 		// score,val
-		sl.add(values[i+1], values[i])
+		sl.list.Set(values[i+1], values[i])
 	}
 
 	return nil
-}
-
-func (sl *SortedList) add(score []byte, value interface{}) {
-	n := sl.list.Len()
-	if n <= 0 {
-		sl.list.Set(score, value)
-		return
-	}
-
-	return
 }
 
 // 分析start及stop
@@ -179,22 +169,19 @@ func (sl *SortedList) parseLimit(start int, stop int) (offset int, count int, er
 
 // eg: redis "-inf" - "+inf"
 func (sl *SortedList) parseScoreLimit(min string, max string) (minRes string, maxRes string, err error) {
-	frontScore := string(sl.list.Front().Key().([]byte))
-	backScore := string(sl.list.Back().Key().([]byte))
-	if min == N_INF {
-		min = frontScore
-	}
-	if max == P_INF {
-		max = backScore
-	}
-	if min < max {
+	if min > max {
 		err = errors.New("invalid min or max")
 		return
 	}
-	if min < frontScore {
+	minRes = min
+	maxRes = max
+
+	frontScore := string(sl.Front().Key().([]byte))
+	backScore := string(sl.Back().Key().([]byte))
+	if min == N_INF {
 		minRes = frontScore
 	}
-	if max > backScore {
+	if max == P_INF {
 		maxRes = backScore
 	}
 	return
