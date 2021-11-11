@@ -5,7 +5,9 @@
 
 #### 使用场景
 
-两者可用于从 redis zset 通过 `ZRANGE ** start stop WITHSCORES` (O(log(n)+m))或 `ZRANGEBYSCORE ** min max WITHSCORES`(O(log(n)+m)) 获取的数据放入本地进程SortedList结构中使用，减少网络io，并发请求大时，缓解出现热key的情况
+两者可用于从 redis zset 通过 `ZRANGE ** start stop WITHSCORES` (O(log(n)+m))或 `ZRANGEBYSCORE ** min max WITHSCORES`(O(log(n)+m)) 获取的数据放入本地进程SortedList结构中使用，减少网络io，并发请求大时，缓解出现热key的情况；
+
+本地缓存可以选用LRU来进行淘汰；
 
 tips: 写入redis zset的数据是时序append加入到有序集合中的，不能出现更新历史数据的情况，以防顺序变化，导致本地缓存不一致 
 
