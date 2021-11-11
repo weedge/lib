@@ -20,12 +20,30 @@ type SortedList struct {
 	createTime int64
 }
 
+type MemberScore struct {
+	member []byte
+	score  []byte
+}
+
 func NewSortedList() *SortedList {
 	return new(SortedList).Init()
 }
 
 func (sl *SortedList) Init() *SortedList {
-	sl.list = skiplist.New(skiplist.BytesAsc)
+	compare := skiplist.GreaterThanFunc(func(lhs, rhs interface{}) int {
+		v1 := lhs.(*MemberScore)
+		v2 := rhs.(*MemberScore)
+		if string(v1.member) == string(v2.member) {
+			return 0
+		}
+
+		if string(v1.score) < string(v2.score) {
+			return -1
+		}
+
+		return 1
+	})
+	sl.list = skiplist.New(compare)
 	sl.createTime = time.Now().Unix()
 	return sl
 }
@@ -111,8 +129,9 @@ func (sl *SortedList) RangeByScoreAsc(min string, max string) []*skiplist.Elemen
 
 func (sl *SortedList) limitByKeyAsc(min string, max string) []*skiplist.Element {
 	res := []*skiplist.Element{}
-	for e := sl.list.Front(); e != nil && string(e.Key().([]byte)) <= max; e = e.Next() {
-		if string(e.Key().([]byte)) >= min {
+	for e := sl.list.FindNext(nil, &MemberScore{member: nil, score: []byte(min)});
+		e != nil && string(e.Value.([]byte)) <= max; e = e.Next() {
+		if string(e.Value.([]byte)) >= min {
 			res = append(res, e)
 		}
 	}
@@ -121,15 +140,14 @@ func (sl *SortedList) limitByKeyAsc(min string, max string) []*skiplist.Element 
 }
 
 // eg: from redis zset zrange get [][]byte
-func (sl *SortedList) AddBatchForStringValScores(values [][]byte) error {
+func (sl *SortedList) AddBatchForStringScoreMembers(values [][]byte) error {
 	if len(values)%2 != 0 {
 		return errors.New("param error")
 	}
 	sl.lock.Lock()
 	defer sl.lock.Unlock()
 	for i := 0; i < len(values); i += 2 {
-		// score,val
-		sl.list.Set(values[i+1], values[i])
+		sl.list.Set(&MemberScore{member: values[i], score: values[i+1]}, values[i+1])
 	}
 
 	return nil
@@ -176,8 +194,8 @@ func (sl *SortedList) parseScoreLimit(min string, max string) (minRes string, ma
 	minRes = min
 	maxRes = max
 
-	frontScore := string(sl.Front().Key().([]byte))
-	backScore := string(sl.Back().Key().([]byte))
+	frontScore := string(sl.Front().Value.([]byte))
+	backScore := string(sl.Back().Value.([]byte))
 	if min == N_INF {
 		minRes = frontScore
 	}
