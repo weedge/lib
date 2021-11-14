@@ -94,4 +94,8 @@ type IBuffer interface {
 
 1. [什么是 WAL](https://segmentfault.com/a/1190000022512468)
 2. [极端事务处理模式：Write-behind 缓存](https://www.infoq.cn/article/write-behind-caching)
+2. [Write-ahead_logging](https://en.wikipedia.org/wiki/Write-ahead_logging)
+2. [ARIES:Algorithms_for_Recovery_and_Isolation_Exploiting_Semantics](https://en.wikipedia.org/wiki/Algorithms_for_Recovery_and_Isolation_Exploiting_Semantics)
+2. [ARIES Overview, Types of Log Records, ARIES Helper Structures](https://www.youtube.com/watch?v=S9nctHdkggk)
+2. [ARIES Database Recovery (CMU Databases Systems / Fall 2019)](https://www.youtube.com/watch?v=4VGkRXVM5fk)
 
