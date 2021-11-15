@@ -98,4 +98,5 @@ type IBuffer interface {
 2. [ARIES:Algorithms_for_Recovery_and_Isolation_Exploiting_Semantics](https://en.wikipedia.org/wiki/Algorithms_for_Recovery_and_Isolation_Exploiting_Semantics)
 2. [ARIES Overview, Types of Log Records, ARIES Helper Structures](https://www.youtube.com/watch?v=S9nctHdkggk)
 2. [ARIES Database Recovery (CMU Databases Systems / Fall 2019)](https://www.youtube.com/watch?v=4VGkRXVM5fk)
+2. [本地事务](http://icyfenix.cn/architect-perspective/general-architecture/transaction/local.html)
 
