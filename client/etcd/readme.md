@@ -33,4 +33,5 @@
 5. [客户端负载均衡](http://icyfenix.cn/distribution/connect/load-balancing.html)
 6. [k8s-service-discovery-and-loadbalancing](https://jimmysong.io/kubernetes-handbook/practice/service-discovery-and-loadbalancing.html)
 7. [istio集成服务注册中心](https://www.servicemesher.com/istio-handbook/practice/integration-registry.html)
+7. [分布式锁：为什么基于etcd实现分布式锁比Redis锁更安全？](https://time.geekbang.org/column/article/350285)
 
