@@ -1,14 +1,31 @@
 package workerpool
 
 import (
-	"github.com/weedge/lib/strings"
+	"runtime"
 	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/weedge/lib/log"
+	"github.com/weedge/lib/strings"
 )
+
+// workerChanCap determines whether the channel of a worker should be a buffered channel
+// to get the best performance. Inspired by fasthttp at
+// https://github.com/valyala/fasthttp/blob/master/workerpool.go#L155
+var workerChanCap = func() int {
+	// Use blocking channel if GOMAXPROCS=1.
+	// This switches context from sender to receiver immediately,
+	// which results in higher performance (under go1.5 at least).
+	if runtime.GOMAXPROCS(0) == 1 {
+		return 0
+	}
+
+	// Use non-blocking workerChan if GOMAXPROCS>1,
+	// since otherwise the sender might be dragged down if the receiver is CPU-bound.
+	return 1
+}()
 
 type WorkerPool struct {
 	minWorkerNum      int32      //worker goroutine 最小数目
@@ -56,6 +73,7 @@ func (wp *WorkerPool) init(taskChSize int) {
 
 	atomic.SwapInt32(&(wp.stat), WorkerPool_Stat_Start)
 
+	//wp.chWorkTask = make(chan Task, workerChanCap)
 	wp.chWorkTask = make(chan Task, taskChSize)
 	wp.chAddWorker = make(chan int32, 1)
 	wp.workers = make([]*Worker, 0, wp.maxWorkerNum)

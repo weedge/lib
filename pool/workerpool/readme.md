@@ -6,7 +6,12 @@
 
 ##### 场景
 
-接口请求中经常会有<u>批量任务</u>执行(可以是不同任务)，将这些任务放入任务工作池中并发处理，提高接口吞吐率，减少相应时间(RT)
+接口请求中经常会有<u>批量任务</u>执行(可以是不同任务)，将这些任务放入任务工作池中并发处理，提高接口吞吐率
+
+tips: （注意协程池和工作池的使用场景，解决问题的目的是啥）
+
+	1. Ants 是协程池，通过sync.Pool复用协程，动态扩缩管理协程池； goroutine pool
+	1. <u>可以利用协程池来处理高并发场景下请求，复用协程，减少协程创建回收消耗；也可以用工作池来加速请求中批量任务的并发处理，提高吞吐</u>；worker pool
 
 
 
@@ -16,7 +21,7 @@
 
 ##### reference
 
-1. [ants](github.com/panjf2000/ants)
+1. [ants](https://github.com/panjf2000/ants) (goroutine pool)
 2. [Concurrency in Golang And WorkerPool](https://hackernoon.com/concurrency-in-golang-and-workerpool-part-1-e9n31ao) [Go语言的并发与WorkerPool](https://mp.weixin.qq.com/s?__biz=MzI2MDA1MTcxMg==&mid=2648468373&idx=1&sn=dc9c6e56cbd20c79a2593481100c69da) Github:[goworkerpool](https://github.com/Joker666/goworkerpool.git)
 3. [The Case For A Go Worker Pool](https://brandur.org/go-worker-pool) GitHub: [worker-pool](https://github.com/vardius/worker-pool)
 4. [一文搞懂如何实现 Go 超时控制](https://segmentfault.com/a/1190000039731121)
