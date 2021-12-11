@@ -32,6 +32,7 @@ ants 是运行时从池中获取管道初始协程，然后往管道提交任务
 5. [使用 Golang Timer 的正确方式](http://russellluo.com/2018/09/the-correct-way-to-use-timer-in-golang.html)
 5. [Pool：性能提升大杀器](https://time.geekbang.org/column/article/301716)
 5. [Visually Understanding Worker Pool](https://medium.com/coinmonks/visually-understanding-worker-pool-48a83b7fc1f5)
+5. [Java线程池实现原理及其在美团业务中的实践](https://tech.meituan.com/2020/04/02/java-pooling-pratice-in-meituan.html)
 
 
 
