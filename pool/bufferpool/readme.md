@@ -18,3 +18,5 @@ BenchmarkJI_TestStringAppend_Parallel-8   	  271797	      4231 ns/op	   28672 B/
 ```
 
 总结： 使用池化buffer, 减少了对象分配次数，减少gc
+
+Tips:  buffer 在复用资源过程中，资源在逐渐增大，一直复用，也会导致资源消耗过多，到了一定大小之后，应该通过系统释放掉，参考使用 [bytebufferpool](https://github.com/valyala/bytebufferpool)
