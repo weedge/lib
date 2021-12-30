@@ -19,4 +19,5 @@ set 集合， 包括mapset ,  bitset(或者bitmap) ,  这里的hashset是以maps
 2. [Consistently faster and smaller compressed bitmaps with Roaring.pdf](https://arxiv.org/pdf/1603.06549.pdf)
 2. [An Experimental Study of Bitmap Compression vs. Inverted List Compression.pdf](https://w6113.github.io/files/papers/sidm338-wangA.pdf)
 2. https://github.com/bits-and-blooms/bloom
+2. [扶苏的bitset浅谈](https://www.luogu.com.cn/blog/fusu2333/fu-su-di-bitset-qian-tan)
 
