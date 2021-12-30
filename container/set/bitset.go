@@ -1,5 +1,7 @@
 package set
 
+import "fmt"
+
 const (
 	shift = 6    // 2^6 = 64
 	mask  = 0x3f // 63
@@ -7,13 +9,25 @@ const (
 
 type BitSet struct {
 	data []uint64 //64位
+	size int
 }
 
 //创建BitSet
-func NewBitSet(size int) *BitSet {
+func NewBitSet(len int) *BitSet {
+	size := len>>shift + 1
 	return &BitSet{
-		data: make([]uint64, size>>shift+1),
+		data: make([]uint64, size),
+		size: size,
 	}
+}
+
+func (set *BitSet) String() string {
+	str := ""
+	for i := set.size - 1; i >= 0; i-- {
+		str += fmt.Sprintf("%d", set.data[i])
+	}
+
+	return str
 }
 
 func (set *BitSet) Get(pos int) int {
@@ -72,7 +86,14 @@ func swar(i uint64) uint64 {
 }
 
 func (set *BitSet) LeftShift(n int) {
-
+	index := n >> shift
+	for i := set.size - 1; i >= index; i-- {
+		set.data[i] = set.data[i-index]
+	}
+	for i := index - 1; i >= 0; i++ {
+		set.data[i] = 0
+	}
+	//todo
 }
 
 func (set *BitSet) RightShift(n int) {

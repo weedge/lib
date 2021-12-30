@@ -1,8 +1,15 @@
 package set
 
 import (
+	"fmt"
 	"testing"
 )
+
+func TestString(t *testing.T){
+	bitSet := NewBitSet( 256)
+	bitSet.Set(64, 1)
+	fmt.Println(bitSet)
+}
 
 func TestGetSet(t *testing.T) {
 	bitSet := NewBitSet(10000)
