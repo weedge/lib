@@ -1,6 +1,6 @@
 #### 介绍
 
-set 集合， 包括mapset ,  bitset(或者bitmap) ,  这里的hashset是以mapset来实现； bitset主要是为了减少空
+set 集合， 包括mapset ,  bitset(或者bitmap) ,  这里的hashset是以mapset来实现； 
 
 #### 使用场景
 
