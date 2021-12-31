@@ -65,7 +65,7 @@ func (set *BitSet) StringDesc() string {
 			str += fmt.Sprintf("#%b", set.data[i])
 		}
 	}
-	str += fmt.Sprintf(" size:%d  upCeilOnesCn:%d", set.size, bits.OnesCount64(set.upCeil))
+	str += fmt.Sprintf(" size:%d len:%d  upCeilOnesCn:%d", set.size, set.len, bits.OnesCount64(set.upCeil))
 
 	return str
 }
@@ -80,7 +80,7 @@ func (set *BitSet) StringAsc() string {
 			str += fmt.Sprintf("#%b", set.data[i])
 		}
 	}
-	str += fmt.Sprintf(" size:%d upCeilOnesCn:%d", set.size, bits.OnesCount64(set.upCeil))
+	str += fmt.Sprintf(" size:%d len:%d upCeilOnesCn:%d", set.size, set.len, bits.OnesCount64(set.upCeil))
 
 	return str
 }
@@ -102,6 +102,7 @@ func (set *BitSet) StringBit() string {
 }
 
 // set in LittleEndian order
+// notice: 0<= pos < len
 func (set *BitSet) Set(pos uint64, value int) int {
 	if pos < 0 || pos >= set.len || !(value == 0 || value == 1) {
 		return -1
@@ -120,7 +121,12 @@ func (set *BitSet) Set(pos uint64, value int) int {
 }
 
 // get in LittleEndian order (test)
+// notice: 0<= pos < len
 func (set *BitSet) Get(pos uint64) int {
+	if pos < 0 || pos >= set.len {
+		return -1
+	}
+
 	index, offset := set._getPos(pos)
 	return set._get(index, offset)
 }
@@ -272,9 +278,9 @@ func (set *BitSet) And(compare *BitSet) (res *BitSet) {
 	panicIfNull(compare)
 
 	s, c := sortByLength(set, compare)
-	res = NewBitSet(set.len)
+	res = NewBitSet(c.len)
 	for i, word := range s.data {
-		res.data[i] = word & c.data[i]
+		res.data[c.size-s.size+i] = word & c.data[c.size-s.size+i]
 	}
 
 	return
@@ -288,7 +294,7 @@ func (set *BitSet) Or(compare *BitSet) (res *BitSet) {
 	s, c := sortByLength(set, compare)
 	res = c.Clone()
 	for i, word := range s.data {
-		res.data[i] = word | c.data[i]
+		res.data[c.size-s.size+i] = word | c.data[c.size-s.size+i]
 	}
 
 	return
@@ -298,22 +304,54 @@ func (set *BitSet) Or(compare *BitSet) (res *BitSet) {
 func (set *BitSet) Xor(compare *BitSet) (res *BitSet) {
 	panicIfNull(set)
 	panicIfNull(compare)
+
 	s, c := sortByLength(set, compare)
-	// compare is bigger, so clone it
 	res = c.Clone()
 	for i, word := range s.data {
-		res.data[i] = word ^ c.data[i]
+		res.data[c.size-s.size+i] = word ^ c.data[c.size-s.size+i]
+	}
+	/*
+	for i := 0; i < (c.size - s.size); i++ {
+		res.data[i] = 0 ^ c.data[i]
+	}
+	 */
+
+	return
+}
+
+// ~ operator (&^) return not bitset
+func (set *BitSet) Not(compare *BitSet) (res *BitSet) {
+	// clone set (in case set is bigger than compare)
+	res = set.Clone()
+	l := compare.wordCount()
+	if l > set.wordCount() {
+		l = set.wordCount()
+	}
+	for i := 0; i < l; i++ {
+		res.data[i] = set.data[i] &^ compare.data[i]
 	}
 
 	return
 }
 
-// ~ operator (&^)
-func (set *BitSet) Not(compare *BitSet) (res *BitSet) {
+// self in place ~ operator (&^)
+func (set *BitSet) InPlaceNot(compare *BitSet) {
 	panicIfNull(set)
 	panicIfNull(compare)
 
+	l := compare.wordCount()
+	if l > set.wordCount() {
+		l = set.wordCount()
+	}
+	for i := 0; i < l; i++ {
+		set.data[i] &^= compare.data[i]
+	}
+
 	return
+}
+
+func (set *BitSet) wordCount() int {
+	return len(set.data)
 }
 
 // Clone this BitSet
@@ -325,7 +363,7 @@ func (set *BitSet) Clone() *BitSet {
 	return c
 }
 
-// Convenience function: return two bitsets ordered by
+// Convenience function: return two bitsets ordered by asc
 // increasing length. Note: neither can be nil
 func sortByLength(a *BitSet, b *BitSet) (ap *BitSet, bp *BitSet) {
 	if a.len <= b.len {
