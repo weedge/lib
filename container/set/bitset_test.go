@@ -5,13 +5,29 @@ import (
 	"testing"
 )
 
-func TestString(t *testing.T){
-	bitSet := NewBitSet( 256)
+func TestNew(t *testing.T) {
+	bitSet := NewBitSet(64)
+	fmt.Println(bitSet)
+}
+
+func TestString(t *testing.T) {
+	bitSet := NewBitSet(256)
 	bitSet.Set(64, 1)
 	fmt.Println(bitSet)
 }
 
-func TestGetSet(t *testing.T) {
+func TestSet(t *testing.T) {
+	bitSet := NewBitSet(64)
+	bitSet.Set(0, 1)
+	bitSet.Set(1, 1)
+	bitSet.Set(63, 1)
+	fmt.Println(bitSet)
+	if bitSet.Set(64, 1) != -1 {
+		t.Error("set error")
+	}
+}
+
+func TestSetGet(t *testing.T) {
 	bitSet := NewBitSet(10000)
 	bitSet.Set(1234, 1)
 	if 1 != bitSet.Get(1234) {
@@ -61,4 +77,92 @@ func TestBitSet_Count(t *testing.T) {
 	if cn != 10 {
 		t.Error("SWAR err")
 	}
+}
+
+func TestBitSet_LeftShift(t *testing.T) {
+	bitSet := NewBitSet(254)
+	bitSet.Set(0, 1)
+	fmt.Println("set 0->1", bitSet)
+	bitSet.LeftShift(1)
+	fmt.Println("leftShift 1", bitSet)
+	bitSet.Set(63, 1)
+	fmt.Println("set 63->1", bitSet)
+	bitSet.Set(64, 1)
+	fmt.Println("set 64->1", bitSet)
+	bitSet.LeftShift(65)
+	fmt.Println("leftShift 65", bitSet)
+	bitSet.LeftShift(65)
+	fmt.Println("leftShift 65", bitSet)
+}
+
+func TestBitSet_RightShift(t *testing.T) {
+	bitSet := NewBitSet(254)
+	bitSet.Set(0, 1)
+	fmt.Println("set 0->1", bitSet)
+	bitSet.LeftShift(1)
+	fmt.Println("leftShift 1", bitSet)
+	bitSet.Set(63, 1)
+	fmt.Println("set 63->1", bitSet)
+	bitSet.Set(64, 1)
+	fmt.Println("set 64->1", bitSet)
+	bitSet.LeftShift(65)
+	fmt.Println("leftShift 65", bitSet)
+	bitSet.RightShift(65)
+	fmt.Println("rightShift 65", bitSet)
+	bitSet.RightShift(65)
+	fmt.Println("rightShift 65", bitSet)
+}
+
+func TestBitSet_And(t *testing.T) {
+	bitSet := NewBitSet(65)
+	bitSet.Set(0, 1)
+	fmt.Println("bitset:", bitSet)
+
+	compare := NewBitSet(64)
+	compare.Set(1, 1)
+	fmt.Println("compare:", compare)
+
+	res := bitSet.And(compare)
+	fmt.Println("bitset:", bitSet)
+	fmt.Println("compare:", compare)
+	fmt.Println("bitset & compare:", res)
+
+	println()
+
+	bitSet = NewBitSet(64)
+	bitSet.Set(0, 1)
+	fmt.Println("bitset:", bitSet)
+
+	compare = NewBitSet(65)
+	compare.Set(1, 1)
+	fmt.Println("compare:", compare)
+
+	res = bitSet.And(compare)
+	fmt.Println("bitset:", bitSet)
+	fmt.Println("compare:", compare)
+	fmt.Println("bitset & compare:", res)
+}
+
+func TestBitSet_Or(t *testing.T) {
+	bitSet := NewBitSet(65)
+	bitSet.Set(0, 1)
+	fmt.Println("bitset:", bitSet)
+
+	compare := NewBitSet(64)
+	compare.Set(1, 1)
+	fmt.Println("compare:", compare)
+
+	res := bitSet.Or(compare)
+	fmt.Println("bitset:", bitSet)
+	fmt.Println("compare:", compare)
+	fmt.Println("bitset | compare:", res)
+
+}
+
+func TestBitSet_Not(t *testing.T) {
+
+}
+
+func TestBitSet_Xor(t *testing.T) {
+
 }

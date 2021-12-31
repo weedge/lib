@@ -11,6 +11,14 @@ set 集合， 包括mapset ,  bitset(或者bitmap) ,  这里的hashset是以maps
 2. Bitset 使用在类似0-1背包的问题，用于计算存放服用是否状态，进行状态转移，在高空间复杂度的情况下，优化内存消耗；
 3. 由bitset衍生的bloom filter  过滤器，用于不存在的场景；
 
+Tips: go1.13 以及之后的版本才支持位运算编译
+
+```golang
+invalid operation: 1 << i (signed shift count type int) requires go1.13 or later (-lang was set to go1.12; check go.mod)
+```
+
+
+
 #### references
 
 1. https://github.com/deckarep/golang-set
