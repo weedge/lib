@@ -31,7 +31,7 @@ type BitSet struct {
 // 创建BitSet
 func NewBitSet(len uint64) *BitSet {
 	size := int(len >> shift)
-	if len&mask == 1 {
+	if len&mask > 0 {
 		size += 1
 	}
 	bt := &BitSet{

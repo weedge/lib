@@ -2,6 +2,7 @@ package set
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 )
 
@@ -21,10 +22,15 @@ func TestSet(t *testing.T) {
 	bitSet.Set(0, 1)
 	bitSet.Set(1, 1)
 	bitSet.Set(63, 1)
-	fmt.Println(bitSet)
 	if bitSet.Set(64, 1) != -1 {
 		t.Error("set error")
 	}
+	bitSet = NewBitSet(100)
+	bitSet.Set(81, 1)
+	if bitSet.Set(81, 1) != 1 {
+		t.Error("set error")
+	}
+	fmt.Println(bitSet)
 }
 
 func TestSetGet(t *testing.T) {
@@ -241,4 +247,17 @@ func TestBitSet_Not(t *testing.T) {
 
 	println()
 
+}
+
+func BenchmarkBitSet_Set(b *testing.B) {
+	b.StopTimer()
+	size := 100
+	bs := NewBitSet(uint64(size))
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		pos := rand.Intn(size)
+		val := rand.Intn(1)
+		bs.Set(uint64(pos), val)
+	}
 }
