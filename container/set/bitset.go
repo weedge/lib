@@ -65,7 +65,7 @@ func (set *BitSet) StringDesc() string {
 			str += fmt.Sprintf("#%b", set.data[i])
 		}
 	}
-	str += fmt.Sprintf(" size:%d len:%d  upCeilOnesCn:%d", set.size, set.len, bits.OnesCount64(set.upCeil))
+	str += fmt.Sprintf(" size:%d len:%d upCeilOnesCn:%d", set.size, set.len, bits.OnesCount64(set.upCeil))
 
 	return str
 }
@@ -272,7 +272,7 @@ func (set *BitSet) rightShiftBit(n int) {
 	set.data[0] &= set.upCeil
 }
 
-// & operator
+// & operator (set&compare -> res)
 func (set *BitSet) And(compare *BitSet) (res *BitSet) {
 	panicIfNull(set)
 	panicIfNull(compare)
@@ -286,7 +286,7 @@ func (set *BitSet) And(compare *BitSet) (res *BitSet) {
 	return
 }
 
-// | operator
+// | operator (set|compare -> res)
 func (set *BitSet) Or(compare *BitSet) (res *BitSet) {
 	panicIfNull(set)
 	panicIfNull(compare)
@@ -300,7 +300,7 @@ func (set *BitSet) Or(compare *BitSet) (res *BitSet) {
 	return
 }
 
-// ^ operator
+// ^ operator (set^compare -> res)
 func (set *BitSet) Xor(compare *BitSet) (res *BitSet) {
 	panicIfNull(set)
 	panicIfNull(compare)
@@ -310,48 +310,58 @@ func (set *BitSet) Xor(compare *BitSet) (res *BitSet) {
 	for i, word := range s.data {
 		res.data[c.size-s.size+i] = word ^ c.data[c.size-s.size+i]
 	}
-	/*
-	for i := 0; i < (c.size - s.size); i++ {
-		res.data[i] = 0 ^ c.data[i]
-	}
-	 */
 
 	return
 }
 
-// ~ operator (&^) return not bitset
-func (set *BitSet) Not(compare *BitSet) (res *BitSet) {
-	// clone set (in case set is bigger than compare)
+// ~ operator(golang option ^self)
+func (set *BitSet) Not() (res *BitSet) {
+	panicIfNull(set)
+
 	res = set.Clone()
-	l := compare.wordCount()
-	if l > set.wordCount() {
-		l = set.wordCount()
-	}
-	for i := 0; i < l; i++ {
-		res.data[i] = set.data[i] &^ compare.data[i]
+	for i, word := range set.data {
+		res.data[i] = ^word
 	}
 
 	return
 }
 
-// self in place ~ operator (&^)
-func (set *BitSet) InPlaceNot(compare *BitSet) {
+// diff operator (&^) return new bitset (diff(set,compare) set not compare)
+func (set *BitSet) Diff(compare *BitSet) (res *BitSet) {
 	panicIfNull(set)
 	panicIfNull(compare)
 
-	l := compare.wordCount()
-	if l > set.wordCount() {
-		l = set.wordCount()
-	}
-	for i := 0; i < l; i++ {
-		set.data[i] &^= compare.data[i]
+	// clone set (in case set is bigger than compare)
+	res = set.Clone()
+	if set.size > compare.size {
+		for i := 0; i < compare.size; i++ {
+			res.data[set.size-compare.size+i] = set.data[set.size-compare.size+i] &^ compare.data[i]
+		}
+	} else {
+		for i := 0; i < set.size; i++ {
+			res.data[i] = set.data[i] &^ compare.data[compare.size-set.size+i]
+		}
 	}
 
 	return
 }
 
-func (set *BitSet) wordCount() int {
-	return len(set.data)
+// self diff operator (&^) return set diff compare(set~compare)
+func (set *BitSet) InPlaceDiff(compare *BitSet) {
+	panicIfNull(set)
+	panicIfNull(compare)
+
+	if set.size > compare.size {
+		for i := 0; i < compare.size; i++ {
+			set.data[set.size-compare.size+i] = set.data[set.size-compare.size+i] &^ compare.data[i]
+		}
+	} else {
+		for i := 0; i < set.size; i++ {
+			set.data[i] = set.data[i] &^ compare.data[compare.size-set.size+i]
+		}
+	}
+
+	return
 }
 
 // Clone this BitSet

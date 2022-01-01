@@ -205,23 +205,13 @@ func TestBitSet_Xor(t *testing.T) {
 	fmt.Println("bitset ^ compare:", res)
 }
 
-func TestBitSet_Not(t *testing.T) {
-	bitSet := NewBitSet(65)
-	bitSet.Set(0, 1)
-	compare := NewBitSet(64)
+func TestBitSet_Diff(t *testing.T) {
+	bitSet := NewBitSet(129)
+	bitSet.Set(1, 1)
+	bitSet.Set(128, 1)
+	compare := NewBitSet(65)
 	compare.Set(1, 1)
-	res := bitSet.Not(compare)
-	fmt.Println("bitset:", bitSet)
-	fmt.Println("compare:", compare)
-	fmt.Println("bitset ~ compare:", res)
-
-	println()
-
-	bitSet = NewBitSet(129)
-	bitSet.Set(0, 1)
-	compare = NewBitSet(64)
-	compare.Set(1, 1)
-	res = bitSet.Not(compare)
+	res := bitSet.Diff(compare)
 	fmt.Println("bitset:", bitSet)
 	fmt.Println("compare:", compare)
 	fmt.Println("bitset ~ compare:", res)
@@ -230,10 +220,25 @@ func TestBitSet_Not(t *testing.T) {
 
 	bitSet = NewBitSet(64)
 	bitSet.Set(0, 1)
+	bitSet.Set(2, 1)
+	bitSet.Set(3, 1)
+	fmt.Println("bitset:", bitSet)
 	compare = NewBitSet(129)
 	compare.Set(1, 1)
-	res = bitSet.Not(compare)
-	fmt.Println("bitset:", bitSet)
+	compare.Set(2, 1)
 	fmt.Println("compare:", compare)
+	res = bitSet.Diff(compare)
 	fmt.Println("bitset ~ compare:", res)
+}
+
+func TestBitSet_Not(t *testing.T) {
+	bitSet := NewBitSet(129)
+	bitSet.Set(1, 1)
+	bitSet.Set(128, 1)
+	fmt.Println("bitset:", bitSet)
+	res := bitSet.Not()
+	fmt.Println("~bitset", res)
+
+	println()
+
 }
