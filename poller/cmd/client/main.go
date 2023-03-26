@@ -50,7 +50,8 @@ func start() {
 		}
 	}()
 
-	for i := 0; i < 1000; i++ {
+	n := 1
+	for i := 0; i < n; i++ {
 		msg := []byte("hello" + strconv.Itoa(i))
 		_, err := conn.Write(common.Encode(msg))
 		if err != nil {

@@ -111,7 +111,11 @@ func closeFD(fd int) (err error) {
 }
 
 func getAddr(sa syscall.Sockaddr) string {
-	addr := sa.(*syscall.SockaddrInet4)
+	addr, ok := sa.(*syscall.SockaddrInet4)
+	if !ok {
+		return ""
+	}
+
 	return fmt.Sprintf("%d.%d.%d.%d:%d", addr.Addr[0], addr.Addr[1], addr.Addr[2], addr.Addr[3], addr.Port)
 }
 

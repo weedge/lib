@@ -20,7 +20,7 @@ type RedisLocker struct {
 	retryTimes    int           // for block lock
 	retryInterval time.Duration // for block lock
 	expiration    time.Duration
-	tag           string // logic tag
+	tag           string // event tag
 	cancel        context.CancelFunc
 	isWatch       bool // is open watch to lease key ttl
 }

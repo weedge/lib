@@ -3,15 +3,16 @@ package discovery
 import (
 	"context"
 	"fmt"
-	"github.com/weedge/lib/runtimer"
 	"strings"
 	"time"
+
+	"github.com/weedge/lib/runtimer"
 
 	"github.com/weedge/lib/log"
 
 	"github.com/pkg/errors"
 	"go.etcd.io/etcd/api/v3/mvccpb"
-	"go.etcd.io/etcd/client/v3"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc/resolver"
 )
 
@@ -60,13 +61,13 @@ func (b *GrpcResolver) DebugStore() {
 // not nil.
 func (b *GrpcResolver) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) {
 	fmt.Printf("call builder %s\n", target.Endpoint)
-	b.store[target.Endpoint] = make(map[string]struct{})
+	b.store[target.Endpoint()] = make(map[string]struct{})
 
 	r := &etcdResolver{
 		client: b.client,
 		target: target,
 		cc:     cc,
-		store:  b.store[target.Endpoint],
+		store:  b.store[target.Endpoint()],
 		stopCh: make(chan struct{}, 1),
 		rn:     make(chan struct{}, 1),
 		t:      time.NewTicker(defaultFreq),
@@ -97,7 +98,7 @@ type etcdResolver struct {
 }
 
 func (r *etcdResolver) start(ctx context.Context) {
-	target := r.target.Endpoint
+	target := r.target.Endpoint()
 
 	w := clientv3.NewWatcher(r.client)
 	rch := w.Watch(ctx, target+"/", clientv3.WithPrefix())
@@ -130,7 +131,7 @@ func (r *etcdResolver) start(ctx context.Context) {
 }
 
 func (r *etcdResolver) resolveNow() {
-	target := r.target.Endpoint
+	target := r.target.Endpoint()
 	resp, err := r.client.Get(context.Background(), target+"/", clientv3.WithPrefix())
 	if err != nil {
 		r.cc.ReportError(errors.Wrap(err, "get init endpoints"))

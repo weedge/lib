@@ -41,3 +41,24 @@ func ExampleConsumerGroup_Ops() {
 	// output:
 	//
 }
+
+func ExampleBizConsumerGroup_Ops() {
+	cg, err := NewConsumerGroup("consumer.group.test", &testMsg{}, nil,
+		WithVersion("2.8.0"),                                           //kafka version
+		WithBrokerList("127.0.0.1:9092,127.0.0.1:9093,127.0.0.1:9094"), //兼容kraft mode
+		WithGroupId("consumer.group.test"),
+		WithTopicList("sarama"),
+		WithInitialOffset("oldest"),
+		WithReBalanceStrategy("sticky"),
+	)
+	if err != nil {
+		println(err)
+	}
+	defer cg.Close()
+	//cg.StartWithDeadline(time.Now().Add(10 * time.Second))
+	//cg.StartWithTimeOut(10 * time.Second)
+	cg.Start()
+
+	// output:
+	//
+}

@@ -17,7 +17,7 @@
 *~
 *.swp
 *.swo
-go.sum
+#go.sum
 
 *.pprof
 
