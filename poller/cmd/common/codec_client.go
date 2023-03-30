@@ -4,8 +4,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/weedge/lib/poller"
 	"net"
+
+	"github.com/weedge/lib/poller"
 )
 
 // Codec 编解码器，用来处理tcp的拆包粘包
@@ -57,7 +58,7 @@ func (c *Codec) Decode() ([]byte, bool, error) {
 // Encode 编码数据
 func Encode(bytes []byte) []byte {
 	l := len(bytes)
-	buffer := make([]byte, l+2)
+	buffer := make([]byte, l+HeaderLen)
 	// 将消息长度写入buffer
 	binary.BigEndian.PutUint16(buffer[0:HeaderLen], uint16(l))
 	// 将消息内容内容写入buffer

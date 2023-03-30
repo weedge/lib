@@ -35,14 +35,25 @@ func NewHeaderLenDecoder(headerLen int) Decoder {
 }
 
 // Decode 解码
+func (d *headerLenDecoder) DecodeBuffer(buffer *Buffer) (value []byte, err error) {
+	value = []byte{}
+	header, err := buffer.Seek(d.headerLen)
+	if err != nil {
+		return
+	}
+
+	valueLen := int(binary.BigEndian.Uint16(header))
+	value, err = buffer.Read(d.headerLen, valueLen)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 func (d *headerLenDecoder) Decode(c *Conn) error {
 	for {
-		header, err := c.buffer.Seek(d.headerLen)
-		if err == ErrBufferNotEnough {
-			return nil
-		}
-		valueLen := int(binary.BigEndian.Uint16(header))
-		value, err := c.buffer.Read(d.headerLen, valueLen)
+		value, err := d.DecodeBuffer(c.buffer)
 		if err == ErrBufferNotEnough {
 			return nil
 		}

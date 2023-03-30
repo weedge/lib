@@ -8,17 +8,17 @@ import (
 	"github.com/weedge/lib/log"
 )
 
-// Conn 客户端长连接
+// Conn keepalive connection
 type Conn struct {
-	server       *Server     // 服务器引用
-	fd           int32       // 文件描述符
-	addr         string      // 对端地址
-	buffer       *Buffer     // 读缓存区
-	lastReadTime time.Time   // 最后一次读取数据的时间
-	data         interface{} // 业务自定义数据，用作扩展
+	server       *Server     // server reference
+	fd           int32       // File descriptor
+	addr         string      // peer address
+	buffer       *Buffer     // Read the buffer
+	lastReadTime time.Time   // Time of last read
+	data         interface{} // Business custom data, used as an extension
 }
 
-// newConn 创建tcp链接
+// newConn create tcp connection
 func newConn(fd int32, addr string, server *Server) *Conn {
 	return &Conn{
 		server:       server,
@@ -29,24 +29,29 @@ func newConn(fd int32, addr string, server *Server) *Conn {
 	}
 }
 
-// GetFd 获取文件描述符
+// GetFd gets the file descriptor
 func (c *Conn) GetFd() int32 {
 	return c.fd
 }
 
-// GetAddr 获取客户端地址
+// GetAddr gets the client address
 func (c *Conn) GetAddr() string {
 	return c.addr
 }
 
-// Read 读取数据
+// GetAddr gets the conn buff
+func (c *Conn) GetBuff() *Buffer {
+	return c.buffer
+}
+
+// Read reads the data
 func (c *Conn) Read() error {
 	c.lastReadTime = time.Now()
 	fd := int(c.GetFd())
 	for {
 		err := c.buffer.ReadFromFD(fd)
 		if err != nil {
-			// 缓存区暂无数据可读
+			// There is no data to read in the buffer
 			if err == syscall.EAGAIN {
 				return nil
 			}
@@ -60,30 +65,30 @@ func (c *Conn) Read() error {
 	}
 }
 
-// Write 写入数据
+// Write writes the data
 func (c *Conn) Write(bytes []byte) (int, error) {
 	return syscall.Write(int(c.fd), bytes)
 }
 
-// Close 关闭连接
+// Close Closes the connection
 func (c *Conn) Close() error {
-	// 从epoll监听的文件描述符中删除
+	// Remove from the file descriptor that epoll is listening for
 	err := closeFD(int(c.fd))
 	if err != nil {
 		log.Error(err)
 		return err
 	}
 
-	// 从conns中删除conn
+	// Remove conn from conns
 	c.server.conns.Delete(c.fd)
-	// 归还缓存区
+	// Return the cache
 	c.server.readBufferPool.Put(c.buffer.Buf)
-	// 连接数减一
+	// Subtract one from the number of connections
 	atomic.AddInt64(&c.server.connsNum, -1)
 	return nil
 }
 
-// CloseRead 关闭连接
+// CloseRead closes connection
 func (c *Conn) CloseRead() error {
 	err := closeFDRead(int(c.fd))
 	if err != nil {
@@ -93,12 +98,12 @@ func (c *Conn) CloseRead() error {
 	return nil
 }
 
-// GetData 获取数据
+// GetData gets the data
 func (c *Conn) GetData() interface{} {
 	return c.data
 }
 
-// SetData 设置数据
+// SetData sets the data
 func (c *Conn) SetData(data interface{}) {
 	c.data = data
 }
