@@ -14,6 +14,7 @@ type options struct {
 	timeoutTicker     time.Duration // 超时时间检查间隔
 	timeout           time.Duration // 超时时间
 	keepaliveInterval time.Duration // tcp keepalive interval
+	listenBacklog     int           // listen bakklog size
 }
 
 type Option interface {
@@ -98,6 +99,15 @@ func WithKeepAliveInterval(d time.Duration) Option {
 	})
 }
 
+func WithListenBacklog(size int) Option {
+	return newFuncServerOption(func(o *options) {
+		if size <= 0 {
+			panic("listen backlog size must greater than 0")
+		}
+		o.listenBacklog = size
+	})
+}
+
 func getOptions(opts ...Option) *options {
 	cpuNum := runtime.NumCPU()
 	options := &options{
@@ -105,6 +115,7 @@ func getOptions(opts ...Option) *options {
 		acceptGNum:      cpuNum,
 		ioGNum:          cpuNum,
 		ioEventQueueLen: 1024,
+		listenBacklog:   1024,
 	}
 
 	for _, o := range opts {

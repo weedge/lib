@@ -12,7 +12,7 @@ var (
 	listenFD int
 )
 
-func listen(address string) error {
+func listen(address string, backlog int) error {
 	var err error
 	listenFD, err = syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
 	if err != nil {
@@ -37,7 +37,7 @@ func listen(address string) error {
 		log.Error(err)
 		return err
 	}
-	err = syscall.Listen(listenFD, 1024)
+	err = syscall.Listen(listenFD, backlog)
 	if err != nil {
 		log.Error(err)
 		return err

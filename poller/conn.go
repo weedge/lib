@@ -58,6 +58,11 @@ func (c *Conn) Read() error {
 			return err
 		}
 
+		if c.server.decoder == nil {
+			c.server.handler.OnMessage(c, c.buffer.ReadAll())
+			continue
+		}
+
 		err = c.server.decoder.Decode(c)
 		if err != nil {
 			return err
@@ -82,7 +87,7 @@ func (c *Conn) Close() error {
 	// Remove conn from conns
 	c.server.conns.Delete(c.fd)
 	// Return the cache
-	c.server.readBufferPool.Put(c.buffer.Buf)
+	c.server.readBufferPool.Put(c.buffer.buf)
 	// Subtract one from the number of connections
 	atomic.AddInt64(&c.server.connsNum, -1)
 	return nil

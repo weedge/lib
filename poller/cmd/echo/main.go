@@ -13,8 +13,8 @@ type MockDecoder struct {
 
 func (*MockDecoder) Decode(c *poller.Conn) (err error) {
 	buff := c.GetBuff()
-	bytes := buff.Buf[:buff.Len()]
-	log.Info("read:", len(bytes), " bytes from fd:", c.GetFd())
+	bytes := buff.ReadAll()
+	log.Infof("read:%s len:%d bytes from fd:%d", bytes, len(bytes), c.GetFd())
 	_, err = syscall.Write(int(c.GetFd()), bytes)
 
 	return
@@ -36,7 +36,7 @@ func (m *MockServerHandler) OnClose(c *poller.Conn, err error) {
 
 func main() {
 	server, err := poller.NewServer(":8081", &MockServerHandler{}, &MockDecoder{},
-		poller.WithTimeout(10*time.Second, 3600*time.Second), poller.WithReadBufferLen(1024))
+		poller.WithTimeout(10*time.Second, 3600*time.Second), poller.WithReadBufferLen(5))
 	if err != nil {
 		log.Info("err")
 		return

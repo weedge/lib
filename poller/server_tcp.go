@@ -48,7 +48,7 @@ func NewServer(address string, handler Handler, decoder Decoder, opts ...Option)
 	}
 
 	// listen and create poller
-	err := listen(address)
+	err := listen(address, options.listenBacklog)
 	if err != nil {
 		log.Error(err)
 		return nil, err
