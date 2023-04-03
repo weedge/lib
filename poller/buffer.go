@@ -36,6 +36,7 @@ func (b *Buffer) reset() {
 func (b *Buffer) ReadFromFD(fd int) error {
 	b.reset()
 
+	//todo: produce read sqe
 	n, err := syscall.Read(fd, b.buf[b.end:])
 	if err != nil {
 		return err

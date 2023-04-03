@@ -18,11 +18,11 @@ if go version &>/dev/null ; then
     tar -xzf go1.20.2.linux-amd64.tar.gz  -C /usr/local
     echo "export PATH=$PATH:/usr/local/go/bin" >> ~/.profile
     source ~/.profile
-    mkdir -p touch ~/.config/go
+    mkdir -p ~/.config/go
     echo "
-    GOPROXY=https://goproxy.io,direct
-    GOPRIVATE=""
-    GOSUMDB=off
+GOPROXY=https://goproxy.io,direct
+GOPRIVATE=""
+GOSUMDB=off
     " >> ~/.config/go/env
     source ~/.config/go/env
 fi

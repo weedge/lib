@@ -76,12 +76,11 @@ func (c *Conn) Write(bytes []byte) (int, error) {
 }
 
 // Close Closes the connection
-func (c *Conn) Close() error {
+func (c *Conn) Close() {
 	// Remove from the file descriptor that epoll is listening for
 	err := closeFD(int(c.fd))
 	if err != nil {
 		log.Error(err)
-		return err
 	}
 
 	// Remove conn from conns
@@ -90,7 +89,6 @@ func (c *Conn) Close() error {
 	c.server.readBufferPool.Put(c.buffer.buf)
 	// Subtract one from the number of connections
 	atomic.AddInt64(&c.server.connsNum, -1)
-	return nil
 }
 
 // CloseRead closes connection

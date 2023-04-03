@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package poller
@@ -44,6 +45,7 @@ func delEventFD(fd int) error {
 	return nil
 }
 
+// todo: io_uring submit and wait_cqe, 
 func getEvents() ([]event, error) {
 	epollEvents := make([]syscall.EpollEvent, 100)
 	n, err := syscall.EpollWait(epollFD, epollEvents, -1)
@@ -54,7 +56,7 @@ func getEvents() ([]event, error) {
 	events := make([]event, 0, len(epollEvents))
 	for i := 0; i < n; i++ {
 		event := event{
-			FD: epollEvents[i].Fd,
+			FD: epollEvents[i].Fd, 
 		}
 		if epollEvents[i].Events == EpollClose {
 			event.Type = EventClose

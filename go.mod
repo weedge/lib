@@ -8,6 +8,7 @@ require (
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/uuid v1.3.0
 	github.com/huandu/skiplist v1.2.0
+	github.com/ii64/gouring v0.4.1
 	github.com/jonboulle/clockwork v0.3.0 // indirect
 	github.com/json-iterator/go v1.1.12
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
@@ -26,3 +27,5 @@ require (
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
 )
+
+replace github.com/ii64/gouring => github.com/weedge/gouring v0.0.0-20230327152525-a4f0969ea37a

@@ -84,11 +84,11 @@ func (s *Server) GetConn(fd int32) (*Conn, bool) {
 
 // Run 启动服务
 func (s *Server) Run() {
-	log.Info("gn server run")
-	s.startAccept()
-	s.startIOConsumer()
+	log.Info("start server run")
+	s.startAcceptor()
+	s.startIOConsumeHandler()
 	s.checkTimeout()
-	s.startIOProducer()
+	s.startIOEventLooper()
 }
 
 // GetConnsNum 获取当前长连接的数量
@@ -110,8 +110,8 @@ func (s *Server) handleEvent(event event) {
 	s.ioEventQueues[index] <- event
 }
 
-// StartProducer 启动生产者
-func (s *Server) startIOProducer() {
+// startIOEventLooper 启动生产者 EvenLoop
+func (s *Server) startIOEventLooper() {
 	log.Info("start io producer")
 	for {
 		select {
@@ -123,6 +123,8 @@ func (s *Server) startIOProducer() {
 			if err != nil {
 				log.Error(err)
 			}
+
+			// dispatch
 			for i := range events {
 				s.handleEvent(events[i])
 			}
@@ -130,8 +132,8 @@ func (s *Server) startIOProducer() {
 	}
 }
 
-// startAccept 开始接收连接请求
-func (s *Server) startAccept() {
+// startAcceptor 开始接收连接请求
+func (s *Server) startAcceptor() {
 	for i := 0; i < s.options.acceptGNum; i++ {
 		go s.accept()
 	}
@@ -160,15 +162,16 @@ func (s *Server) accept() {
 	}
 }
 
-// StartConsumer 启动消费者
-func (s *Server) startIOConsumer() {
+// startIOConsumeHandler 启动消费者
+func (s *Server) startIOConsumeHandler() {
 	for _, queue := range s.ioEventQueues {
+		queue := queue
 		go s.consumeIOEvent(queue)
 	}
-	log.Info(fmt.Sprintf("start io event consumer by %d goroutine", len(s.ioEventQueues)))
+	log.Info(fmt.Sprintf("start io event consumer by %d goroutine handler", len(s.ioEventQueues)))
 }
 
-// ConsumeIO 消费IO事件
+// consumeIOEvent 消费IO事件
 func (s *Server) consumeIOEvent(queue chan event) {
 	for event := range queue {
 		v, ok := s.conns.Load(event.FD)
@@ -219,7 +222,7 @@ func (s *Server) checkTimeout() {
 				s.conns.Range(func(key, value interface{}) bool {
 					c := value.(*Conn)
 
-					if time.Now().Sub(c.lastReadTime) > s.options.timeout {
+					if time.Since(c.lastReadTime) > s.options.timeout {
 						s.handleEvent(event{FD: c.fd, Type: EventTimeout})
 					}
 					return true

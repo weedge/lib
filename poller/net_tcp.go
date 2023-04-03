@@ -45,6 +45,7 @@ func listen(address string, backlog int) error {
 
 	log.Info("listen addr", addr, "port", port)
 
+	// init poller(io_uring,epoll)
 	err = createPoller()
 	if err != nil {
 		log.Error(err)
