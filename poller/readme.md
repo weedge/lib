@@ -5,8 +5,5 @@
 ![go-epoll](https://github.com/weedge/im/blob/main/go-epoll.png?raw=true)
 
 #### reference
-
-1. https://github.com/AlexStocks/getty
-2. https://github.com/panjf2000/gnet
-3. https://github.com/cloudwego/netpoll
+1. https://github.com/cloudwego/netpoll
 
