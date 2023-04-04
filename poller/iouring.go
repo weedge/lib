@@ -96,7 +96,7 @@ func (m *ioUring) produceSocketListenAcceptSqe(lfd int, clientAddr *syscall.RawS
 
 	sqe.UserData.SetUnsafe(unsafe.Pointer(connInfo))
 
-	m.submitNum = atomic.AddInt64(&m.submitNum, 1)
+	atomic.AddInt64(&m.submitNum, 1)
 }
 
 func (m *ioUring) produceSocketConnRecvSqe(cfd int, buff []byte, flags uint8) {
@@ -110,7 +110,7 @@ func (m *ioUring) produceSocketConnRecvSqe(cfd int, buff []byte, flags uint8) {
 	}
 
 	sqe.UserData.SetUnsafe(unsafe.Pointer(&connInfo))
-	m.submitNum = atomic.AddInt64(&m.submitNum, 1)
+	atomic.AddInt64(&m.submitNum, 1)
 }
 
 func (m *ioUring) produceSocketConnSendSqe(cfd int, buff []byte, msgSize int, flags uint8) {
@@ -124,5 +124,5 @@ func (m *ioUring) produceSocketConnSendSqe(cfd int, buff []byte, msgSize int, fl
 	}
 
 	sqe.UserData.SetUnsafe(unsafe.Pointer(&connInfo))
-	m.submitNum = atomic.AddInt64(&m.submitNum, 1)
+	atomic.AddInt64(&m.submitNum, 1)
 }
