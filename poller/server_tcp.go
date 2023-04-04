@@ -8,24 +8,23 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ii64/gouring"
 	"github.com/weedge/lib/log"
 )
 
 // Server TCP服务
 type Server struct {
-	options        *options         // 服务参数
-	readBufferPool *sync.Pool       // 读缓存区内存池
-	handler        Handler          // 注册的处理
-	decoder        Decoder          // 解码器
-	ioEventQueues  []chan eventInfo // IO事件队列集合
-	ioQueueNum     int              // IO事件队列集合数量
-	conns          sync.Map         // TCP长连接管理
-	connsNum       int64            // 当前建立的长连接数量
-	stop           chan int         // 服务器关闭信号
-	listenFD       int              // listen fd
-	pollerFD       int              // event poller fd (epoll/kqueue, poll, select)
-	iouring        *gouring.IoUring // iouring async event
+	options        *options          // 服务参数
+	readBufferPool *sync.Pool        // 读缓存区内存池
+	handler        Handler           // 注册的处理
+	decoder        Decoder           // 解码器
+	ioEventQueues  []chan *eventInfo // IO事件队列集合
+	ioQueueNum     int               // IO事件队列集合数量
+	conns          sync.Map          // TCP长连接管理
+	connsNum       int64             // 当前建立的长连接数量
+	stop           chan int          // 服务器关闭信号
+	listenFD       int               // listen fd
+	pollerFD       int               // event poller fd (epoll/kqueue, poll, select)
+	iouring        *ioUring          // iouring async event
 }
 
 // NewServer
@@ -57,15 +56,19 @@ func NewServer(address string, handler Handler, decoder Decoder, opts ...Option)
 	}
 
 	// init io_uring setup
-	var ring *gouring.IoUring
+	var ring *ioUring
 	if options.ioMode == IOModeUring {
-		ring, err = newRing(options.ioUringEntries, options.ioUringParams)
+		ring, err = newIoUring(options.ioUringEntries, options.ioUringParams)
+		if err != nil {
+			log.Error(err)
+			return nil, err
+		}
 	}
 
 	// init io event channel(queue)
-	ioEventQueues := make([]chan eventInfo, options.ioGNum)
+	ioEventQueues := make([]chan *eventInfo, options.ioGNum)
 	for i := range ioEventQueues {
-		ioEventQueues[i] = make(chan eventInfo, options.ioEventQueueLen)
+		ioEventQueues[i] = make(chan *eventInfo, options.ioEventQueueLen)
 	}
 
 	return &Server{
@@ -114,43 +117,15 @@ func (s *Server) GetConnsNum() int64 {
 
 // Stop
 // stop server, close communication channel(queue)
+// free io uring
 func (s *Server) Stop() {
 	close(s.stop)
 	for _, queue := range s.ioEventQueues {
 		close(queue)
 	}
-}
 
-// handleEvent
-// use hash dispatch event to channel(queue)
-// need balance
-func (s *Server) handleEvent(event eventInfo) {
-	index := event.fd % s.ioQueueNum
-	s.ioEventQueues[index] <- event
-}
-
-// startIOEventLooper
-// from poller events or io_uring cqe event entries
-func (s *Server) startIOEventLooper() {
-	log.Info("start io producer")
-	for {
-		select {
-		case <-s.stop:
-			log.Error("stop producer")
-			return
-		default:
-			var err error
-			var events []eventInfo
-			events, err = getEvents(s.pollerFD)
-			if err != nil {
-				log.Error(err)
-			}
-
-			// dispatch
-			for i := range events {
-				s.handleEvent(events[i])
-			}
-		}
+	if s.iouring != nil {
+		s.iouring.CloseRing()
 	}
 }
 
@@ -193,7 +168,78 @@ func (s *Server) accept() {
 	}
 }
 
-func (s *Server) asyncAccept() {
+// nonBlockPollAccept
+// non block accept, when return EAGAIN, add/produce event poll op to sqe
+func (s *Server) nonBlockPollAccept() {
+}
+
+// asyncBlockAccept
+// async add/produce block accept op to sqe
+func (s *Server) asyncBlockAccept() {
+}
+
+// startIOEventLooper
+// from poller events or io_uring cqe event entries
+func (s *Server) startIOEventLooper() {
+	if s.iouring != nil {
+		s.startIOUringPollDispatcher()
+	} else {
+		s.startIOEventPollDispatcher()
+	}
+}
+
+// startIOEventPollDispatcher
+// get ready events from poller, distpatch to event channel(queue)
+func (s *Server) startIOEventPollDispatcher() {
+	log.Info("start io event poll dispatcher")
+	for {
+		select {
+		case <-s.stop:
+			log.Error("stop io event poll dispatcher")
+			return
+		default:
+			var err error
+			var events []eventInfo
+			events, err = getEvents(s.pollerFD)
+			if err != nil {
+				log.Error(err)
+			}
+
+			// dispatch
+			for i := range events {
+				s.handleEvent(&events[i])
+			}
+		}
+	} // end for
+}
+
+// startIOUringPollDispatcher
+// get completed event ops from io_uring cqe event entries, distpatch to event channel(queue)
+func (s *Server) startIOUringPollDispatcher() {
+	log.Info("start io_uring event op poll dispatcher")
+	for {
+		select {
+		case <-s.stop:
+			log.Error("stop io_uring event op poll dispatcher")
+			return
+		default:
+			event, err := s.iouring.getEventInfo()
+			if err != nil {
+				log.Error(err)
+			}
+
+			// dispatch
+			s.handleEvent(event)
+		}
+	} // end for
+}
+
+// handleEvent
+// use hash dispatch event to channel(queue)
+// need balance
+func (s *Server) handleEvent(event *eventInfo) {
+	index := event.fd % s.ioQueueNum
+	s.ioEventQueues[index] <- event
 }
 
 // startIOConsumeHandler
@@ -206,9 +252,21 @@ func (s *Server) startIOConsumeHandler() {
 	log.Info(fmt.Sprintf("start io event consumer by %d goroutine handler", len(s.ioEventQueues)))
 }
 
-// consumeIOEvent
-// handle r/w, close, connect timeout etc event
-func (s *Server) consumeIOEvent(queue chan eventInfo) {
+func (s *Server) consumeIOEvent(queue chan *eventInfo) {
+	if s.iouring != nil {
+		s.consumeIOCompletionEvent(queue)
+	} else {
+		s.consumeIOReadyEvent(queue)
+	}
+}
+
+// consumeIOCompletionEvent
+func (s *Server) consumeIOCompletionEvent(queue chan *eventInfo) {
+}
+
+// consumeIOReadyEvent
+// handle ready r/w, close, connect timeout etc event
+func (s *Server) consumeIOReadyEvent(queue chan *eventInfo) {
 	for event := range queue {
 		v, ok := s.conns.Load(event.fd)
 		if !ok {
@@ -242,7 +300,7 @@ func (s *Server) consumeIOEvent(queue chan eventInfo) {
 
 			log.Debug(err)
 		}
-	}
+	} // end for
 }
 
 // checkTimeout
@@ -264,12 +322,12 @@ func (s *Server) checkTimeout() {
 					c := value.(*Conn)
 
 					if time.Since(c.lastReadTime) > s.options.timeout {
-						s.handleEvent(eventInfo{fd: int(c.fd), etype: ETypeTimeout})
+						s.handleEvent(&eventInfo{fd: int(c.fd), etype: ETypeTimeout})
 					}
 					return true
 				})
 			}
-		}
+		} // end for
 	}()
 }
 

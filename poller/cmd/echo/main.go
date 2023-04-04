@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"os/signal"
 	"syscall"
 	"time"
 
@@ -42,5 +44,12 @@ func main() {
 		return
 	}
 
-	server.Run()
+	go server.Run()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Info("server stop")
+	server.Stop()
 }

@@ -9,9 +9,11 @@ var (
 	ErrReadTimeout     = errors.New("tcp read timeout")
 	ErrBufferNotEnough = errors.New("buffer not enough")
 
-	ErrIOUringParamsFastPollUnAvailable = errors.New("IORING_FEAT_FAST_POLL not available in the kernel, quiting...")
-	ErrIOUringSubmitFail                = errors.New("iouring submit fail")
-	ErrIOUringWaitCqe                   = errors.New("iouring wait cqe fail")
+	ErrIOUringFeaturesUnAvailable = errors.New("required IORING_FEAT_SINGLE_MMAP | IORING_FEAT_FAST_POLL | IORING_FEAT_NODROP not available in the kernel")
+	ErrIOUringRegisterFDFail      = errors.New("iouring register fd failed")
+	ErrIOUringSubmitFail          = errors.New("iouring submit failed")
+	ErrIOUringSubmitedNoFull      = errors.New("iouring submited no full")
+	ErrIOUringWaitCqeFail         = errors.New("iouring wait cqe failed")
 )
 
 // Handler Server for biz logic

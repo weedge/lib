@@ -8,6 +8,7 @@ import (
 // Buffer 读缓冲区,每个tcp长连接对应一个读缓冲区
 type Buffer struct {
 	// todo: use bytes.Buffer -> buffer pool
+	//buff   bytes.Buffer
 	buf   []byte // 应用内缓存区
 	start int    // 有效字节开始位置
 	end   int    // 有效字节结束位置
