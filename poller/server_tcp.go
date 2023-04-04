@@ -8,38 +8,32 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ii64/gouring"
 	"github.com/weedge/lib/log"
 )
 
-const (
-	EventIn      = 1 // 数据流入
-	EventClose   = 2 // 断开连接
-	EventTimeout = 3 // 检测到超时
-)
-
-type event struct {
-	FD   int32 // 文件描述符
-	Type int32 // 时间类型
-}
-
 // Server TCP服务
 type Server struct {
-	options        *options     // 服务参数
-	readBufferPool *sync.Pool   // 读缓存区内存池
-	handler        Handler      // 注册的处理
-	decoder        Decoder      // 解码器
-	ioEventQueues  []chan event // IO事件队列集合
-	ioQueueNum     int32        // IO事件队列集合数量
-	conns          sync.Map     // TCP长连接管理
-	connsNum       int64        // 当前建立的长连接数量
-	stop           chan int     // 服务器关闭信号
+	options        *options         // 服务参数
+	readBufferPool *sync.Pool       // 读缓存区内存池
+	handler        Handler          // 注册的处理
+	decoder        Decoder          // 解码器
+	ioEventQueues  []chan eventInfo // IO事件队列集合
+	ioQueueNum     int              // IO事件队列集合数量
+	conns          sync.Map         // TCP长连接管理
+	connsNum       int64            // 当前建立的长连接数量
+	stop           chan int         // 服务器关闭信号
+	listenFD       int              // listen fd
+	pollerFD       int              // event poller fd (epoll/kqueue, poll, select)
+	iouring        *gouring.IoUring // iouring async event
 }
 
-// NewServer 创建server服务器
+// NewServer
+// init server to start
 func NewServer(address string, handler Handler, decoder Decoder, opts ...Option) (*Server, error) {
 	options := getOptions(opts...)
 
-	// 初始化读缓存区内存池
+	// init read buffer pool
 	readBufferPool := &sync.Pool{
 		New: func() interface{} {
 			b := make([]byte, options.readBufferLen)
@@ -47,17 +41,31 @@ func NewServer(address string, handler Handler, decoder Decoder, opts ...Option)
 		},
 	}
 
-	// listen and create poller
-	err := listen(address, options.listenBacklog)
+	// listen
+	lfd, err := listen(address, options.listenBacklog)
 	if err != nil {
 		log.Error(err)
 		return nil, err
 	}
 
-	// 初始化io事件队列
-	ioEventQueues := make([]chan event, options.ioGNum)
+	// init poller(io_uring,epoll)
+	var pollerFD int
+	pollerFD, err = createPoller()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	// init io_uring setup
+	var ring *gouring.IoUring
+	if options.ioMode == IOModeUring {
+		ring, err = newRing(options.ioUringEntries, options.ioUringParams)
+	}
+
+	// init io event channel(queue)
+	ioEventQueues := make([]chan eventInfo, options.ioGNum)
 	for i := range ioEventQueues {
-		ioEventQueues[i] = make(chan event, options.ioEventQueueLen)
+		ioEventQueues[i] = make(chan eventInfo, options.ioEventQueueLen)
 	}
 
 	return &Server{
@@ -66,14 +74,18 @@ func NewServer(address string, handler Handler, decoder Decoder, opts ...Option)
 		handler:        handler,
 		decoder:        decoder,
 		ioEventQueues:  ioEventQueues,
-		ioQueueNum:     int32(options.ioGNum),
+		ioQueueNum:     options.ioGNum,
 		conns:          sync.Map{},
 		connsNum:       0,
 		stop:           make(chan int),
+		listenFD:       lfd,
+		pollerFD:       pollerFD,
+		iouring:        ring,
 	}, nil
 }
 
-// GetConn 获取Conn
+// GetConn
+// get connect by connect fd from session connect sync Map
 func (s *Server) GetConn(fd int32) (*Conn, bool) {
 	value, ok := s.conns.Load(fd)
 	if !ok {
@@ -82,7 +94,11 @@ func (s *Server) GetConn(fd int32) (*Conn, bool) {
 	return value.(*Conn), true
 }
 
-// Run 启动服务
+// Run run server
+// acceptor accept connet fron listen fd,
+// eventLooper dispatch event,
+// ioConsumeHandler hanle event for biz logic
+// check time out connenct session,
 func (s *Server) Run() {
 	log.Info("start server run")
 	s.startAcceptor()
@@ -91,12 +107,13 @@ func (s *Server) Run() {
 	s.startIOEventLooper()
 }
 
-// GetConnsNum 获取当前长连接的数量
+// GetConnsNum
 func (s *Server) GetConnsNum() int64 {
 	return atomic.LoadInt64(&s.connsNum)
 }
 
-// Stop 启动服务
+// Stop
+// stop server, close communication channel(queue)
 func (s *Server) Stop() {
 	close(s.stop)
 	for _, queue := range s.ioEventQueues {
@@ -104,13 +121,16 @@ func (s *Server) Stop() {
 	}
 }
 
-// handleEvent 处理事件
-func (s *Server) handleEvent(event event) {
-	index := event.FD % s.ioQueueNum
+// handleEvent
+// use hash dispatch event to channel(queue)
+// need balance
+func (s *Server) handleEvent(event eventInfo) {
+	index := event.fd % s.ioQueueNum
 	s.ioEventQueues[index] <- event
 }
 
-// startIOEventLooper 启动生产者 EvenLoop
+// startIOEventLooper
+// from poller events or io_uring cqe event entries
 func (s *Server) startIOEventLooper() {
 	log.Info("start io producer")
 	for {
@@ -119,7 +139,9 @@ func (s *Server) startIOEventLooper() {
 			log.Error("stop producer")
 			return
 		default:
-			events, err := getEvents()
+			var err error
+			var events []eventInfo
+			events, err = getEvents(s.pollerFD)
 			if err != nil {
 				log.Error(err)
 			}
@@ -132,7 +154,8 @@ func (s *Server) startIOEventLooper() {
 	}
 }
 
-// startAcceptor 开始接收连接请求
+// startAcceptor
+// setup accept connect goroutine
 func (s *Server) startAcceptor() {
 	for i := 0; i < s.options.acceptGNum; i++ {
 		go s.accept()
@@ -140,29 +163,41 @@ func (s *Server) startAcceptor() {
 	log.Info(fmt.Sprintf("start accept by %d goroutine", s.options.acceptGNum))
 }
 
-// accept 接收连接请求
+// accept
+// block accept connect from listen fd
+// save non block connect fd session and OnConnect logic handle
 func (s *Server) accept() {
 	for {
 		select {
 		case <-s.stop:
 			return
 		default:
-			nfd, addr, err := accept(s.options.keepaliveInterval)
+			cfd, socketAddr, err := accept(s.listenFD, s.options.keepaliveInterval)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			addr := getAddr(socketAddr)
+
+			err = addReadEvent(s.pollerFD, cfd)
 			if err != nil {
 				log.Error(err)
 				continue
 			}
 
-			fd := int32(nfd)
-			conn := newConn(fd, addr, s)
-			s.conns.Store(fd, conn)
+			conn := newConn(s.pollerFD, cfd, addr, s)
+			s.conns.Store(cfd, conn)
 			atomic.AddInt64(&s.connsNum, 1)
 			s.handler.OnConnect(conn)
 		}
 	}
 }
 
-// startIOConsumeHandler 启动消费者
+func (s *Server) asyncAccept() {
+}
+
+// startIOConsumeHandler
+// setup io event consume goroutine
 func (s *Server) startIOConsumeHandler() {
 	for _, queue := range s.ioEventQueues {
 		queue := queue
@@ -171,22 +206,23 @@ func (s *Server) startIOConsumeHandler() {
 	log.Info(fmt.Sprintf("start io event consumer by %d goroutine handler", len(s.ioEventQueues)))
 }
 
-// consumeIOEvent 消费IO事件
-func (s *Server) consumeIOEvent(queue chan event) {
+// consumeIOEvent
+// handle r/w, close, connect timeout etc event
+func (s *Server) consumeIOEvent(queue chan eventInfo) {
 	for event := range queue {
-		v, ok := s.conns.Load(event.FD)
+		v, ok := s.conns.Load(event.fd)
 		if !ok {
-			log.Error("not found in conns,", event.FD)
+			log.Error("not found in conns,", event.fd)
 			continue
 		}
 		c := v.(*Conn)
 
-		if event.Type == EventClose {
+		if event.etype == ETypeClose {
 			c.Close()
 			s.handler.OnClose(c, io.EOF)
 			continue
 		}
-		if event.Type == EventTimeout {
+		if event.etype == ETypeTimeout {
 			c.Close()
 			s.handler.OnClose(c, ErrReadTimeout)
 			continue
@@ -194,10 +230,13 @@ func (s *Server) consumeIOEvent(queue chan event) {
 
 		err := c.Read()
 		if err != nil {
-			// 服务端关闭连接
+			// notice: if next connect use closed cfd (TIME_WAIT stat between 2MSL eg:4m),
+			// read from closed cfd return EBADF
 			if err == syscall.EBADF {
 				continue
 			}
+
+			// close and free connect
 			c.Close()
 			s.handler.OnClose(c, err)
 
@@ -206,12 +245,14 @@ func (s *Server) consumeIOEvent(queue chan event) {
 	}
 }
 
-// checkTimeout 定时检查超时的TCP长连接
+// checkTimeout
+// tick to check connect time out
 func (s *Server) checkTimeout() {
 	if s.options.timeout == 0 || s.options.timeoutTicker == 0 {
 		return
 	}
-	log.Info(fmt.Sprintf("check timeout goroutine run,check_time:%v,timeout:%v", s.options.timeoutTicker, s.options.timeout))
+
+	log.Infof("check timeout goroutine run,check_time:%v,timeout:%v", s.options.timeoutTicker, s.options.timeout)
 	go func() {
 		ticker := time.NewTicker(s.options.timeoutTicker)
 		for {
@@ -223,7 +264,7 @@ func (s *Server) checkTimeout() {
 					c := value.(*Conn)
 
 					if time.Since(c.lastReadTime) > s.options.timeout {
-						s.handleEvent(event{FD: c.fd, Type: EventTimeout})
+						s.handleEvent(eventInfo{fd: int(c.fd), etype: ETypeTimeout})
 					}
 					return true
 				})

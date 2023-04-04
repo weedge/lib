@@ -15,7 +15,7 @@ func (*MockDecoder) Decode(c *poller.Conn) (err error) {
 	buff := c.GetBuff()
 	bytes := buff.ReadAll()
 	//log.Infof("read:%s len:%d bytes from fd:%d", bytes, len(bytes), c.GetFd())
-	_, err = syscall.Write(int(c.GetFd()), bytes)
+	_, err = syscall.Write(c.GetFd(), bytes)
 
 	return
 }

@@ -15,20 +15,16 @@ const (
 	EpollClose = uint32(unix.EPOLLIN | unix.EPOLLRDHUP)
 )
 
-var (
-	epollFD int
-)
-
-func createPoller() (err error) {
-	epollFD, err = syscall.EpollCreate1(0)
+func createPoller() (pollFD int, err error) {
+	pollFD, err = syscall.EpollCreate1(0)
 	if err != nil {
 		return
 	}
 	return
 }
 
-func addReadEventFD(fd int) (err error) {
-	err = syscall.EpollCtl(epollFD, syscall.EPOLL_CTL_ADD, fd, &syscall.EpollEvent{
+func addReadEventFD(pollFD, fd int) (err error) {
+	err = syscall.EpollCtl(pollFD, syscall.EPOLL_CTL_ADD, fd, &syscall.EpollEvent{
 		Events: EpollRead,
 		Fd:     int32(fd),
 	})
@@ -36,8 +32,8 @@ func addReadEventFD(fd int) (err error) {
 	return
 }
 
-func delEventFD(fd int) error {
-	err := syscall.EpollCtl(epollFD, syscall.EPOLL_CTL_DEL, fd, nil)
+func delEventFD(pollFD, fd int) error {
+	err := syscall.EpollCtl(pollFD, syscall.EPOLL_CTL_DEL, fd, nil)
 	if err != nil {
 		return err
 	}
@@ -45,23 +41,22 @@ func delEventFD(fd int) error {
 	return nil
 }
 
-// todo: io_uring submit and wait_cqe, 
-func getEvents() ([]event, error) {
+func getEvents(pollFD int) ([]eventInfo, error) {
 	epollEvents := make([]syscall.EpollEvent, 100)
-	n, err := syscall.EpollWait(epollFD, epollEvents, -1)
+	n, err := syscall.EpollWait(pollFD, epollEvents, -1)
 	if err != nil {
 		return nil, err
 	}
 
-	events := make([]event, 0, len(epollEvents))
+	events := make([]eventInfo, 0, len(epollEvents))
 	for i := 0; i < n; i++ {
-		event := event{
-			FD: epollEvents[i].Fd, 
+		event := eventInfo{
+			fd: int(epollEvents[i].Fd),
 		}
 		if epollEvents[i].Events == EpollClose {
-			event.Type = EventClose
+			event.etype = ETypeClose
 		} else {
-			event.Type = EventIn
+			event.etype = ETypeIn
 		}
 		events = append(events, event)
 	}

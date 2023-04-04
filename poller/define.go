@@ -8,13 +8,17 @@ import (
 var (
 	ErrReadTimeout     = errors.New("tcp read timeout")
 	ErrBufferNotEnough = errors.New("buffer not enough")
+
+	ErrIOUringParamsFastPollUnAvailable = errors.New("IORING_FEAT_FAST_POLL not available in the kernel, quiting...")
+	ErrIOUringSubmitFail                = errors.New("iouring submit fail")
+	ErrIOUringWaitCqe                   = errors.New("iouring wait cqe fail")
 )
 
-// Handler Server 注册接口
+// Handler Server for biz logic
 type Handler interface {
-	OnConnect(c *Conn)               // OnConnect 当TCP长连接建立成功是回调
-	OnMessage(c *Conn, bytes []byte) // OnMessage 当客户端有数据写入是回调
-	OnClose(c *Conn, err error)      // OnClose 当客户端主动断开链接或者超时时回调,err返回关闭的原因
+	OnConnect(c *Conn)
+	OnMessage(c *Conn, bytes []byte)
+	OnClose(c *Conn, err error)
 }
 
 // defaultTCPKeepAlive is a default constant value for TCPKeepAlive times
@@ -22,3 +26,6 @@ type Handler interface {
 const (
 	defaultTCPKeepAlive = 15 * time.Second
 )
+
+type Poller interface {
+}

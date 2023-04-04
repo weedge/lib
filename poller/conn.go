@@ -11,7 +11,8 @@ import (
 // Conn keepalive connection
 type Conn struct {
 	server       *Server     // server reference
-	fd           int32       // File descriptor
+	pollerFD     int         // event poller File descriptor
+	fd           int         // socket connect File descriptor
 	addr         string      // peer address
 	buffer       *Buffer     // Read the buffer
 	lastReadTime time.Time   // Time of last read
@@ -19,9 +20,10 @@ type Conn struct {
 }
 
 // newConn create tcp connection
-func newConn(fd int32, addr string, server *Server) *Conn {
+func newConn(pollerFD, fd int, addr string, server *Server) *Conn {
 	return &Conn{
 		server:       server,
+		pollerFD:     pollerFD,
 		fd:           fd,
 		addr:         addr,
 		buffer:       NewBuffer(server.readBufferPool.Get().([]byte)),
@@ -30,7 +32,7 @@ func newConn(fd int32, addr string, server *Server) *Conn {
 }
 
 // GetFd gets the file descriptor
-func (c *Conn) GetFd() int32 {
+func (c *Conn) GetFd() int {
 	return c.fd
 }
 
@@ -47,7 +49,7 @@ func (c *Conn) GetBuff() *Buffer {
 // Read reads the data
 func (c *Conn) Read() error {
 	c.lastReadTime = time.Now()
-	fd := int(c.GetFd())
+	fd := c.GetFd()
 	for {
 		err := c.buffer.ReadFromFD(fd)
 		if err != nil {
@@ -78,7 +80,7 @@ func (c *Conn) Write(bytes []byte) (int, error) {
 // Close Closes the connection
 func (c *Conn) Close() {
 	// Remove from the file descriptor that epoll is listening for
-	err := closeFD(int(c.fd))
+	err := closeFD(c.pollerFD, c.fd)
 	if err != nil {
 		log.Error(err)
 	}

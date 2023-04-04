@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netpoll
@@ -148,7 +149,7 @@ func (ep *Epoll) Close() (err error) {
 	}
 
 	ep.mu.Lock()
-	// Set callbacks to nil preventing long mu.Lock() hold.
+	// Set callbacks to nil prETypeIng long mu.Lock() hold.
 	// This could increase the speed of retreiving ErrClosed in other calls to
 	// current epoll instance.
 	// Setting callbacks to nil is safe here because no one should read after

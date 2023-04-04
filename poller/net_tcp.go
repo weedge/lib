@@ -8,69 +8,63 @@ import (
 	"github.com/weedge/lib/log"
 )
 
-var (
-	listenFD int
-)
-
-func listen(address string, backlog int) error {
-	var err error
+func listen(address string, backlog int) (listenFD int, err error) {
 	listenFD, err = syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
 	if err != nil {
 		log.Error(err)
-		return err
+		return
 	}
+
 	err = syscall.SetsockoptInt(listenFD, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
 	if err != nil {
 		log.Error(err)
-		return err
+		return
 	}
 
 	addr, port, err := GetIPPort(address)
 	if err != nil {
-		return err
+		return
 	}
+
 	err = syscall.Bind(listenFD, &syscall.SockaddrInet4{
 		Port: port,
 		Addr: addr,
 	})
 	if err != nil {
 		log.Error(err)
-		return err
+		return
 	}
+
 	err = syscall.Listen(listenFD, backlog)
 	if err != nil {
 		log.Error(err)
-		return err
+		return
 	}
+	log.Infof("server listen port %d fd %d", port, listenFD)
 
-	log.Info("listen addr", addr, "port", port)
-
-	// init poller(io_uring,epoll)
-	err = createPoller()
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	return nil
+	return
 }
 
-func accept(d time.Duration) (nfd int, addr string, err error) {
-	nfd, sa, err := syscall.Accept(listenFD)
+func accept(listenFD int, d time.Duration) (nfd int, sa syscall.Sockaddr, err error) {
+	// block accept
+	nfd, sa, err = syscall.Accept(listenFD)
 	if err != nil {
 		return
 	}
 
-	// 设置为非阻塞状态
+	// set connect fd non bolock
 	err = syscall.SetNonblock(nfd, true)
 	if err != nil {
 		return
 	}
 
+	// set nodelay for wide bound network
 	err = syscall.SetsockoptInt(nfd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, 1)
 	if err != nil {
 		return
 	}
 
+	// set tcp server connect keep alive
 	if d == 0 {
 		d = defaultTCPKeepAlive
 	}
@@ -79,17 +73,11 @@ func accept(d time.Duration) (nfd int, addr string, err error) {
 		return
 	}
 
-	err = addRead(nfd)
-	if err != nil {
-		return
-	}
-	addr = getAddr(sa)
-
 	return
 }
 
-func addRead(fd int) (err error) {
-	err = addReadEventFD(fd)
+func addReadEvent(pollerFD, fd int) (err error) {
+	err = addReadEventFD(pollerFD, fd)
 	if err != nil {
 		return
 	}
@@ -97,8 +85,8 @@ func addRead(fd int) (err error) {
 	return
 }
 
-func closeFD(fd int) (err error) {
-	err = delEventFD(fd)
+func closeFD(pollerFD, fd int) (err error) {
+	err = delEventFD(pollerFD, fd)
 	if err != nil {
 		return
 	}

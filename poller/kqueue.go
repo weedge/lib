@@ -1,3 +1,4 @@
+//go:build darwin || dragonfly || freebsd || netbsd || openbsd
 // +build darwin dragonfly freebsd netbsd openbsd
 
 package poller
@@ -6,10 +7,6 @@ import (
 	"golang.org/x/sys/unix"
 	"syscall"
 	"time"
-)
-
-var (
-	kqueueFD int
 )
 
 const (
@@ -135,8 +132,8 @@ const (
 // syscall.TCP_KEEPINTVL is missing on some darwin architectures.
 const sysTCP_KEEPINTVL = 0x101
 
-func createPoller() (err error) {
-	kqueueFD, err = unix.Kqueue()
+func createPoller() (pollerFD int, err error) {
+	pollerFD, err = unix.Kqueue()
 	if err != nil {
 		return
 	}
@@ -144,13 +141,13 @@ func createPoller() (err error) {
 	return
 }
 
-func addReadEventFD(fd int) (err error) {
+func addReadEventFD(pollerFD, fd int) (err error) {
 	changeEvent := unix.Kevent_t{
 		Ident:  uint64(fd),
 		Filter: int16(EVFILT_READ),
 		Flags:  EVRead,
 	}
-	_, err = unix.Kevent(kqueueFD, []unix.Kevent_t{changeEvent}, nil, nil)
+	_, err = unix.Kevent(pollerFD, []unix.Kevent_t{changeEvent}, nil, nil)
 	if err != nil {
 		return
 	}
@@ -158,17 +155,17 @@ func addReadEventFD(fd int) (err error) {
 	return
 }
 
-func delEventFD(fd int) (err error) {
-	_, err = unix.Kevent(kqueueFD,
+func delEventFD(pollerFD, fd int) (err error) {
+	_, err = unix.Kevent(pollerFD,
 		[]unix.Kevent_t{{Ident: uint64(fd), Flags: EV_DELETE}},
 		nil, nil)
 
 	return
 }
 
-func getEvents() ([]event, error) {
+func getEvents(pollerFD int) ([]event, error) {
 	kEvents := make([]unix.Kevent_t, 100)
-	n, err := unix.Kevent(kqueueFD, nil, kEvents, nil)
+	n, err := unix.Kevent(pollerFD, nil, kEvents, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -176,12 +173,12 @@ func getEvents() ([]event, error) {
 	events := make([]event, 0, len(kEvents))
 	for i := 0; i < n; i++ {
 		event := event{
-			FD: int32(kEvents[i].Ident),
+			fd: int32(kEvents[i].Ident),
 		}
 		if kEvents[i].Flags == EV_EOF {
-			event.Type = EventClose
+			event.Type = ETypeClose
 		} else {
-			event.Type = EventIn
+			event.Type = ETypeIn
 		}
 		events = append(events, event)
 	}
