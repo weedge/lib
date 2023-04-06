@@ -68,10 +68,12 @@ func (m *ioUring) getEventInfo() (info *eventInfo, err error) {
 	var cqe *gouring.IoUringCqe
 	err = m.ring.WaitCqe(&cqe)
 	if err != nil {
+		err = ErrIOUringWaitCqeFail
 		return
 	}
 
 	info = (*eventInfo)(cqe.UserData.GetUnsafe())
+	info.cqe = cqe
 
 	return
 }
@@ -79,50 +81,56 @@ func (m *ioUring) getEventInfo() (info *eventInfo, err error) {
 // getEventInfos
 // @todo
 // io_uring submit and wait mutli cqe for reap events
-func getEventInfos(ring *gouring.IoUring) (infos []*eventInfo, err error) {
+func (m *ioUring) getEventInfos(infos []*eventInfo, err error) {
 
 	return
 }
 
-func (m *ioUring) produceSocketListenAcceptSqe(lfd int, clientAddr *syscall.RawSockaddrAny, clientAddrLen uint32, flags uint8) {
+func (m *ioUring) addAcceptSqe(cb EventCallBack, lfd int,
+	clientAddr *syscall.RawSockaddrAny, clientAddrLen uint32, flags uint8) {
 	sqe := m.ring.GetSqe()
 	gouring.PrepAccept(sqe, lfd, clientAddr, (*uintptr)(unsafe.Pointer(&clientAddrLen)), 0)
 	sqe.Flags = flags
 
-	connInfo := &eventInfo{
+	eventInfo := &eventInfo{
 		fd:    lfd,
 		etype: ETypeAccept,
+		cb:    cb,
 	}
 
-	sqe.UserData.SetUnsafe(unsafe.Pointer(connInfo))
+	sqe.UserData.SetUnsafe(unsafe.Pointer(eventInfo))
 
 	atomic.AddInt64(&m.submitNum, 1)
 }
 
-func (m *ioUring) produceSocketConnRecvSqe(cfd int, buff []byte, flags uint8) {
+func (m *ioUring) addRecvSqe(cb EventCallBack, cfd int, buff []byte, flags uint8) {
 	sqe := m.ring.GetSqe()
 	gouring.PrepRecv(sqe, cfd, &buff[0], len(buff), uint(flags))
 	sqe.Flags = flags
 
-	connInfo := eventInfo{
+	eventInfo := eventInfo{
 		fd:    cfd,
 		etype: ETypeRead,
 	}
 
-	sqe.UserData.SetUnsafe(unsafe.Pointer(&connInfo))
+	sqe.UserData.SetUnsafe(unsafe.Pointer(&eventInfo))
 	atomic.AddInt64(&m.submitNum, 1)
 }
 
-func (m *ioUring) produceSocketConnSendSqe(cfd int, buff []byte, msgSize int, flags uint8) {
+func (m *ioUring) addSendSqe(cb EventCallBack, cfd int, buff []byte, msgSize int, flags uint8) {
 	sqe := m.ring.GetSqe()
 	gouring.PrepSend(sqe, cfd, &buff[0], msgSize, uint(flags))
 	sqe.Flags = flags
 
-	connInfo := eventInfo{
+	eventInfo := eventInfo{
 		fd:    cfd,
 		etype: ETypeWrite,
 	}
 
-	sqe.UserData.SetUnsafe(unsafe.Pointer(&connInfo))
+	sqe.UserData.SetUnsafe(unsafe.Pointer(&eventInfo))
 	atomic.AddInt64(&m.submitNum, 1)
+}
+
+func (m *ioUring) cqeDone(cqe *gouring.IoUringCqe) {
+	m.ring.SeenCqe(cqe)
 }

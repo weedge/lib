@@ -11,17 +11,16 @@ import (
 	"github.com/weedge/lib/log"
 )
 
-// Server TCP服务
+// Server TCP server
 type Server struct {
-	options        *options          // 服务参数
-	readBufferPool *sync.Pool        // 读缓存区内存池
-	handler        Handler           // 注册的处理
-	decoder        Decoder           // 解码器
-	ioEventQueues  []chan *eventInfo // IO事件队列集合
-	ioQueueNum     int               // IO事件队列集合数量
-	conns          sync.Map          // TCP长连接管理
-	connsNum       int64             // 当前建立的长连接数量
-	stop           chan int          // 服务器关闭信号
+	options        *options          // Service parameters
+	readBufferPool *sync.Pool        // Read cache memory pool
+	handler        Handler           // Indicates the processing of registration
+	ioEventQueues  []chan *eventInfo // IO A collection of event queues
+	ioQueueNum     int               // Number of I/O event queues
+	conns          sync.Map          // TCP long connection management
+	connsNum       int64             // Indicates the number of established long connections
+	stop           chan int          // Indicates the server shutdown signal
 	listenFD       int               // listen fd
 	pollerFD       int               // event poller fd (epoll/kqueue, poll, select)
 	iouring        *ioUring          // iouring async event
@@ -29,7 +28,7 @@ type Server struct {
 
 // NewServer
 // init server to start
-func NewServer(address string, handler Handler, decoder Decoder, opts ...Option) (*Server, error) {
+func NewServer(address string, handler Handler, opts ...Option) (*Server, error) {
 	options := getOptions(opts...)
 
 	// init read buffer pool
@@ -75,7 +74,6 @@ func NewServer(address string, handler Handler, decoder Decoder, opts ...Option)
 		options:        options,
 		readBufferPool: readBufferPool,
 		handler:        handler,
-		decoder:        decoder,
 		ioEventQueues:  ioEventQueues,
 		ioQueueNum:     options.ioGNum,
 		conns:          sync.Map{},
@@ -160,7 +158,7 @@ func (s *Server) accept() {
 				continue
 			}
 
-			conn := newConn(s.pollerFD, cfd, addr, s)
+			conn := newConn(s.pollerFD, cfd, addr, s, s.options.ioMode)
 			s.conns.Store(cfd, conn)
 			atomic.AddInt64(&s.connsNum, 1)
 			s.handler.OnConnect(conn)
@@ -176,6 +174,34 @@ func (s *Server) nonBlockPollAccept() {
 // asyncBlockAccept
 // async add/produce block accept op to sqe
 func (s *Server) asyncBlockAccept() {
+	var rsa syscall.RawSockaddrAny
+	var len uint32 = syscall.SizeofSockaddrAny
+	s.iouring.addAcceptSqe(s.getAcceptCallback(&rsa), s.listenFD, &rsa, len, 0)
+}
+
+func (s *Server) getAcceptCallback(rsa *syscall.RawSockaddrAny) EventCallBack {
+	return func(e *eventInfo) (err error) {
+		err = setConnectOption(e.fd, s.options.keepaliveInterval)
+		if err != nil {
+			return
+		}
+
+		socketAddr, err := anyToSockaddr(rsa)
+		if err != nil {
+			return
+		}
+		addr := getAddr(socketAddr)
+
+		conn := newConn(s.pollerFD, e.fd, addr, s, s.options.ioMode)
+		s.conns.Store(e.fd, conn)
+		atomic.AddInt64(&s.connsNum, 1)
+
+		conn.AsyncBlockRead()
+
+		s.handler.OnConnect(conn)
+
+		return
+	}
 }
 
 // startIOEventLooper
@@ -225,18 +251,25 @@ func (s *Server) startIOUringPollDispatcher() {
 		default:
 			event, err := s.iouring.getEventInfo()
 			if err != nil {
-				log.Error(err)
+				if err == ErrIOUringWaitCqeFail {
+					log.Errorf("iouring get events error:%s continue", err.Error())
+					continue
+				}
+				log.Errorf("iouring get events error:%s", err.Error())
 			}
 
 			// dispatch
 			s.handleEvent(event)
+			// commit cqe is seen
+			s.iouring.cqeDone(event.cqe)
 		}
 	} // end for
 }
 
 // handleEvent
 // use hash dispatch event to channel(queue)
-// need balance
+// need balance(hash fd, same connect have orderly event process)
+// golang scheduler have a good way to schedule thread in bound cpu affinity
 func (s *Server) handleEvent(event *eventInfo) {
 	index := event.fd % s.ioQueueNum
 	s.ioEventQueues[index] <- event
@@ -262,6 +295,71 @@ func (s *Server) consumeIOEvent(queue chan *eventInfo) {
 
 // consumeIOCompletionEvent
 func (s *Server) consumeIOCompletionEvent(queue chan *eventInfo) {
+	for event := range queue {
+		// process async accept connect complete event
+		if event.etype == ETypeAccept {
+			if event.cqe.Res < 0 {
+				log.Errorf("[error] connect failed connFd %d, continue next event", event.cqe.Res)
+				continue
+			}
+
+			err := event.cb(event)
+			if err != nil {
+				log.Errorf("accept event cb error:%s, continue next event", err.Error())
+				continue
+			}
+			// new connected client; read data from socket and re-add accept to monitor for new connections
+			s.asyncBlockAccept()
+			continue
+		}
+
+		// get connect from fd
+		v, ok := s.conns.Load(event.fd)
+		if !ok {
+			log.Errorf("fd %d not found in conns, continue next event", event.fd)
+			continue
+		}
+		c := v.(*Conn)
+
+		// process close event
+		switch event.etype {
+		case ETypeClose:
+			c.Close()
+			s.handler.OnClose(c, io.EOF)
+			continue
+		case ETypeTimeout:
+			c.Close()
+			s.handler.OnClose(c, ErrReadTimeout)
+			continue
+		}
+
+		// process async read complete event
+		if event.etype == ETypeRead {
+			err := c.processReadEvent(event)
+			if err != nil {
+				// notice: if next connect use closed cfd (TIME_WAIT stat between 2MSL eg:4m),
+				// read from closed cfd return EBADF
+				if err == syscall.EBADF {
+					log.Errorf("read closed connect fd %d EBADF, continue next event", event.fd)
+					continue
+				}
+
+				// no bytes available on socket, client must be disconnected
+				log.Warnf("process read event %s err:%s , client connect must be disconnected", event, err.Error())
+				// close and free connect
+				c.Close()
+				s.handler.OnClose(c, err)
+			}
+		}
+
+		// async write complete event
+		if event.etype == ETypeWrite {
+			err := c.processWirteEvent(event)
+			if err != nil {
+				continue
+			}
+		}
+	} // end for
 }
 
 // consumeIOReadyEvent
@@ -294,11 +392,12 @@ func (s *Server) consumeIOReadyEvent(queue chan *eventInfo) {
 				continue
 			}
 
+			// no bytes available on socket, client must be disconnected
+			log.Warnf("process sync read err:%s , client connect must be disconnected", err.Error())
 			// close and free connect
 			c.Close()
 			s.handler.OnClose(c, err)
 
-			log.Debug(err)
 		}
 	} // end for
 }

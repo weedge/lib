@@ -17,10 +17,11 @@ type Conn struct {
 	buffer       *Buffer     // Read the buffer
 	lastReadTime time.Time   // Time of last read
 	data         interface{} // Business custom data, used as an extension
+	ioMode       IOMode      // io mode
 }
 
 // newConn create tcp connection
-func newConn(pollerFD, fd int, addr string, server *Server) *Conn {
+func newConn(pollerFD, fd int, addr string, server *Server, ioMode IOMode) *Conn {
 	return &Conn{
 		server:       server,
 		pollerFD:     pollerFD,
@@ -28,6 +29,7 @@ func newConn(pollerFD, fd int, addr string, server *Server) *Conn {
 		addr:         addr,
 		buffer:       NewBuffer(server.readBufferPool.Get().([]byte)),
 		lastReadTime: time.Now(),
+		ioMode:       ioMode,
 	}
 }
 
@@ -46,7 +48,8 @@ func (c *Conn) GetBuff() *Buffer {
 	return c.buffer
 }
 
-// Read reads the data
+// Read
+// block read bytes until read readBufferLen bytes from connect fd
 func (c *Conn) Read() error {
 	c.lastReadTime = time.Now()
 	fd := c.GetFd()
@@ -60,21 +63,85 @@ func (c *Conn) Read() error {
 			return err
 		}
 
-		if c.server.decoder == nil {
+		if c.server.options.decoder == nil {
 			c.server.handler.OnMessage(c, c.buffer.ReadAll())
 			continue
 		}
 
-		err = c.server.decoder.Decode(c)
+		err = c.server.options.decoder.Decode(c)
 		if err != nil {
 			return err
 		}
 	}
 }
 
-// Write writes the data
+// AsyncBlockRead  trigger a async kernerl block read from connect fd to buff
+func (c *Conn) AsyncBlockRead() {
+	c.lastReadTime = time.Now()
+	fd := c.GetFd()
+	c.buffer.AsyncReadFromFD(fd, c.server.iouring, c.getReadCallback())
+}
+
+func (c *Conn) getReadCallback() EventCallBack {
+	return func(e *eventInfo) (err error) {
+		if c.server.options.decoder == nil {
+			c.server.handler.OnMessage(c, c.buffer.ReadAll())
+			return
+		}
+
+		err = c.server.options.decoder.Decode(c)
+		if err != nil {
+			return
+		}
+
+		return
+	}
+}
+
+// processReadEvent
+// process connect read complete event
+// add async block read bytes event until read readBufferLen bytes from connect fd
+func (c *Conn) processReadEvent(e *eventInfo) (err error) {
+	for {
+		err = e.cb(e)
+		if err != nil {
+			// There is no data to read in the buffer
+			if err == syscall.EAGAIN {
+				return nil
+			}
+			return err
+		}
+
+		c.AsyncBlockRead()
+	}
+}
+
+// AsyncBlockWrite
+// async block write bytes
+func (c *Conn) AsyncBlockWrite(bytes []byte) {
+	c.server.iouring.addSendSqe(func(info *eventInfo) error { return nil }, c.fd, bytes, len(bytes), 0)
+	return
+}
+func (c *Conn) processWirteEvent(e *eventInfo) (err error) {
+	if e.cqe.Res < 0 {
+		err = ErrIOUringWriteFail
+		return
+	}
+	err = e.cb(e)
+
+	return
+}
+
+// Write
+// Writer impl, block write
 func (c *Conn) Write(bytes []byte) (int, error) {
-	return syscall.Write(int(c.fd), bytes)
+	return syscall.Write(c.fd, bytes)
+}
+
+// WriteWithEncoder
+// write with encoder, encode bytes to writer
+func (c *Conn) WriteWithEncoder(bytes []byte) error {
+	return c.server.options.encoder.EncodeToWriter(c, bytes)
 }
 
 // Close Closes the connection

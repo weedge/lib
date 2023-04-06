@@ -36,8 +36,6 @@ func (b *Buffer) reset() {
 // ReadFromFD 从文件描述符里面读取数据
 func (b *Buffer) ReadFromFD(fd int) error {
 	b.reset()
-
-	//todo: produce read sqe
 	n, err := syscall.Read(fd, b.buf[b.end:])
 	if err != nil {
 		return err
@@ -46,6 +44,25 @@ func (b *Buffer) ReadFromFD(fd int) error {
 		return syscall.EAGAIN
 	}
 	b.end += n
+	return nil
+}
+
+// AsyncReadFromFD
+// async block read event from fd to buff
+func (b *Buffer) AsyncReadFromFD(fd int, uring *ioUring, cb EventCallBack) error {
+	b.reset()
+	uring.addRecvSqe(func(info *eventInfo) error {
+		n := info.cqe.Res
+		if n < 0 {
+			return ErrIOUringReadFail
+		}
+		if n == 0 {
+			return syscall.EAGAIN
+		}
+		b.end += int(n)
+		return cb(info)
+	}, len(b.buf[b.end:]), b.buf[b.end:], 0)
+
 	return nil
 }
 

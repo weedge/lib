@@ -20,7 +20,7 @@ func (m *MockServerHandler) OnMessage(c *poller.Conn, bytes []byte) {
 	log.Info("read:", string(bytes), "from fd:", c.GetFd())
 	encoder := poller.NewHeaderLenEncoder(common.HeaderLen, common.MaxLen)
 	res := fmt.Sprintf("got it: %s", bytes)
-	err := encoder.EncodeToFD(int32(c.GetFd()), []byte(res))
+	err := encoder.EncodeToWriter(c, []byte(res))
 	if err != nil {
 		log.Error("res", res, "EncodeToFD err:", err.Error())
 	}
@@ -32,7 +32,7 @@ func (m *MockServerHandler) OnClose(c *poller.Conn, err error) {
 }
 
 func main() {
-	server, err := poller.NewServer(":8085", &MockServerHandler{}, poller.NewHeaderLenDecoder(common.HeaderLen),
+	server, err := poller.NewServer(":8085", &MockServerHandler{}, poller.WithDecoder(poller.NewHeaderLenDecoder(common.HeaderLen)),
 		poller.WithTimeout(10*time.Second, 3600*time.Second), poller.WithReadBufferLen(10))
 	if err != nil {
 		log.Info("err")

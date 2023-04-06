@@ -16,12 +16,17 @@ const (
 
 // options Server opt config
 type options struct {
-	readBufferLen     int                    // 所读取的客户端包的最大长度，客户端发送的包不能超过这个长度，默认值是1024字节
-	acceptGNum        int                    // 处理接受请求的goroutine数量
-	ioGNum            int                    // 处理io的goroutine数量
-	ioEventQueueLen   int                    // io事件队列长度
-	timeoutTicker     time.Duration          // 超时时间检查间隔
-	timeout           time.Duration          // 超时时间
+	// readBufferLen
+	// The maximum length of the client packet read. The client cannot send packets beyond this length.
+	// default 1024 bytes
+	readBufferLen     int
+	acceptGNum        int                    // Number of Goroutines processed for accepted requests
+	ioGNum            int                    // Number of goroutines to process I/OS
+	ioEventQueueLen   int                    // I/O event queue length
+	timeoutTicker     time.Duration          // Timeout check interval
+	timeout           time.Duration          // Timeout period
+	decoder           Decoder                // decoder
+	encoder           Encoder                // Encoder
 	keepaliveInterval time.Duration          // tcp keepalive interval
 	listenBacklog     int                    // listen bakklog size
 	ioMode            IOMode                 // io event mode: io_uring, other
@@ -94,6 +99,17 @@ func WithTimeout(timeoutTicker, timeout time.Duration) Option {
 
 		o.timeoutTicker = timeoutTicker
 		o.timeout = timeout
+	})
+}
+
+func WithDecoder(decoder Decoder) Option {
+	return newFuncServerOption(func(o *options) {
+		o.decoder = decoder
+	})
+}
+func WithEncoder(encoder Encoder) Option {
+	return newFuncServerOption(func(o *options) {
+		o.encoder = encoder
 	})
 }
 

@@ -17,7 +17,7 @@ func (*MockDecoder) Decode(c *poller.Conn) (err error) {
 	buff := c.GetBuff()
 	bytes := buff.ReadAll()
 	//log.Infof("read:%s len:%d bytes from fd:%d", bytes, len(bytes), c.GetFd())
-	_, err = syscall.Write(c.GetFd(), bytes)
+	_, err = c.Write(bytes)
 
 	return
 }
@@ -37,7 +37,7 @@ func (m *MockServerHandler) OnClose(c *poller.Conn, err error) {
 }
 
 func main() {
-	server, err := poller.NewServer(":8081", &MockServerHandler{}, &MockDecoder{},
+	server, err := poller.NewServer(":8081", &MockServerHandler{}, poller.WithDecoder(&MockDecoder{}),
 		poller.WithTimeout(10*time.Second, 3600*time.Second), poller.WithReadBufferLen(128))
 	if err != nil {
 		log.Info("err")
