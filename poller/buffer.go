@@ -5,16 +5,16 @@ import (
 	"syscall"
 )
 
-// Buffer 读缓冲区,每个tcp长连接对应一个读缓冲区
+// Buffer Read buffer, one read buffer for each tcp long connection
 type Buffer struct {
-	// todo: use bytes.Buffer -> buffer pool
-	//buff   bytes.Buffer
-	buf   []byte // 应用内缓存区
-	start int    // 有效字节开始位置
-	end   int    // 有效字节结束位置
+	// todo: use bytes.Buffer ->  buffer pool
+	// buff   bytes.Buffer
+	buf   []byte // In-application cache
+	start int    // The start position of a valid byte
+	end   int    // End position of a valid byte
 }
 
-// NewBuffer 创建一个缓存区
+// NewBuffer Creates a buffer
 func NewBuffer(bytes []byte) *Buffer {
 	return &Buffer{buf: bytes, start: 0, end: 0}
 }
@@ -23,7 +23,7 @@ func (b *Buffer) Len() int {
 	return b.end - b.start
 }
 
-// reset 重新设置缓存区（将有用字节前移）
+// reset Reset cache (moves useful bytes forward)
 func (b *Buffer) reset() {
 	if b.start == 0 {
 		return
@@ -33,7 +33,7 @@ func (b *Buffer) reset() {
 	b.start = 0
 }
 
-// ReadFromFD 从文件描述符里面读取数据
+// ReadFromFD reads data from the file descriptor
 func (b *Buffer) ReadFromFD(fd int) error {
 	b.reset()
 	n, err := syscall.Read(fd, b.buf[b.end:])
@@ -66,7 +66,7 @@ func (b *Buffer) AsyncReadFromFD(fd int, uring *ioUring, cb EventCallBack) error
 	return nil
 }
 
-// ReadFromReader 从reader里面读取数据，如果reader阻塞，会发生阻塞
+// ReadFromReader reads data from the reader. If the reader blocks, it will block
 func (b *Buffer) ReadFromReader(reader io.Reader) (int, error) {
 	b.reset()
 	n, err := reader.Read(b.buf[b.end:])
@@ -77,16 +77,16 @@ func (b *Buffer) ReadFromReader(reader io.Reader) (int, error) {
 	return n, nil
 }
 
-// Seek 返回n个字节，而不产生移位，如果没有足够字节，返回错误
+// Seek returns n bytes without a shift, or an error if there are not enough bytes
 func (b *Buffer) Seek(len int) ([]byte, error) {
-	if b.end-b.start >= len {
+	if b.end-b.start <= len {
 		buf := b.buf[b.start : b.start+len]
 		return buf, nil
 	}
 	return nil, ErrBufferNotEnough
 }
 
-// Read 舍弃offset个字段，读取n个字段,如果没有足够的字节，返回错误
+// Read Discard offset fields and read n fields. If there are not enough bytes, an error is returned
 func (b *Buffer) Read(offset, limit int) ([]byte, error) {
 	if b.Len() < offset+limit {
 		return nil, ErrBufferNotEnough
@@ -97,7 +97,7 @@ func (b *Buffer) Read(offset, limit int) ([]byte, error) {
 	return buf, nil
 }
 
-// ReadAll 读取所有字节
+// ReadAll Reads all bytes
 func (b *Buffer) ReadAll() []byte {
 	buf, _ := b.Read(b.start, b.end)
 	return buf

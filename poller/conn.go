@@ -103,6 +103,9 @@ func (c *Conn) getReadCallback() EventCallBack {
 // add async block read bytes event until read readBufferLen bytes from connect fd
 func (c *Conn) processReadEvent(e *eventInfo) (err error) {
 	for {
+		// if un use poll in ready, need add read event op again
+		c.AsyncBlockRead()
+
 		err = e.cb(e)
 		if err != nil {
 			// There is no data to read in the buffer
@@ -111,8 +114,6 @@ func (c *Conn) processReadEvent(e *eventInfo) (err error) {
 			}
 			return err
 		}
-
-		c.AsyncBlockRead()
 	}
 }
 
@@ -127,7 +128,15 @@ func (c *Conn) processWirteEvent(e *eventInfo) (err error) {
 		err = ErrIOUringWriteFail
 		return
 	}
+
 	err = e.cb(e)
+	if err != nil {
+		// There is no data to write to the buffer
+		if err == syscall.EAGAIN {
+			return nil
+		}
+		return err
+	}
 
 	return
 }

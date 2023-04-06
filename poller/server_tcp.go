@@ -356,6 +356,7 @@ func (s *Server) consumeIOCompletionEvent(queue chan *eventInfo) {
 		if event.etype == ETypeWrite {
 			err := c.processWirteEvent(event)
 			if err != nil {
+				log.Errorf("process write event %s err:%s, continue next event", event, err.Error())
 				continue
 			}
 		}
