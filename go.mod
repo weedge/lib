@@ -28,6 +28,6 @@ require (
 	google.golang.org/protobuf v1.30.0
 )
 
-replace github.com/ii64/gouring => github.com/weedge/gouring v0.0.0-20230404130518-f2168ca662d4
+replace github.com/ii64/gouring => github.com/weedge/gouring v0.0.0-20230406152517-60a6d6e09b3a
 
 //replace github.com/ii64/gouring => ../gouring
