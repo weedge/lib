@@ -46,7 +46,7 @@ func NewServer(address string, handler Handler, opts ...Option) (*Server, error)
 		return nil, err
 	}
 
-	// init poller(io_uring,epoll)
+	// init poller(epoll/kqueue)
 	var pollerFD int
 	pollerFD, err = createPoller()
 	if err != nil {
@@ -130,10 +130,16 @@ func (s *Server) Stop() {
 // startAcceptor
 // setup accept connect goroutine
 func (s *Server) startAcceptor() {
+	if s.iouring != nil {
+		s.asyncBlockAccept()
+		log.Info("start trigger async block accept")
+		return
+	}
+
 	for i := 0; i < s.options.acceptGNum; i++ {
 		go s.accept()
 	}
-	log.Info(fmt.Sprintf("start accept by %d goroutine", s.options.acceptGNum))
+	log.Infof("start accept by %d goroutine", s.options.acceptGNum)
 }
 
 // accept
@@ -251,11 +257,8 @@ func (s *Server) startIOUringPollDispatcher() {
 		default:
 			event, err := s.iouring.getEventInfo()
 			if err != nil {
-				if err == ErrIOUringWaitCqeFail {
-					log.Errorf("iouring get events error:%s continue", err.Error())
-					continue
-				}
-				log.Errorf("iouring get events error:%s", err.Error())
+				log.Errorf("iouring get events error:%s continue", err.Error())
+				return
 			}
 
 			// dispatch

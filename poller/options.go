@@ -10,8 +10,14 @@ import (
 type IOMode int32
 
 const (
-	IOModeUnkonw IOMode = iota
-	IOModeUring
+	IOModeUnkonw      IOMode = iota
+	IOModeUring              // all async block event (interrupt)
+	IOModeUringPoll          // poll IN ready event
+	IOModeUringSQPoll        // less syscall for io_uring_enter
+	IOModeUringWQ            // stream unbounded worker pool (worker queue)
+	IOModeIouK               // kenerl sqpoll + poll, user space poll wait cqe
+
+	IOModeDefaultPoll = (1 << 30) // epoll/kqueue event
 )
 
 // options Server opt config
@@ -29,7 +35,7 @@ type options struct {
 	encoder           Encoder                // Encoder
 	keepaliveInterval time.Duration          // tcp keepalive interval
 	listenBacklog     int                    // listen bakklog size
-	ioMode            IOMode                 // io event mode: io_uring, other
+	ioMode            IOMode                 // io event mode: io_uring, poll other
 	ioUringParams     *gouring.IoUringParams // io_uring_setup params
 	ioUringEntries    uint32                 // io_uring setup sqe entry array size
 }

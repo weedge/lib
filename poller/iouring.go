@@ -37,16 +37,18 @@ func newIoUring(entries uint32, params *gouring.IoUringParams) (iouring *ioUring
 	}
 
 	/*
-		Note:
-		When the ring descriptor is registered, it is stored internally in the struct io_uring structure.
-		For applications that share a ring between threads, for example having one thread do submits and another reap events, then this optimization cannot be used as each thread may have a different index for the registered ring fd.
+			Note:
+			When the ring descriptor is registered, it is stored internally in the struct io_uring structure.
+			For applications that share a ring between threads, for example having one thread do submits and another reap events, then this optimization cannot be used as each thread may have a different index for the registered ring fd.
+		ret, err := ring.RegisterRingFD()
+		if err != nil || ret < 0 {
+			log.Errorf("ring.RegisterRingFD err %s", err.Error())
+			err = ErrIOUringRegisterFDFail
+			return
+		}
 	*/
-	ret, err := ring.RegisterRingFD()
-	if err != nil || ret < 0 {
-		log.Infof("ring.RegisterRingFD err %s", err.Error())
-		err = ErrIOUringRegisterFDFail
-		return
-	}
+
+	log.Infof("newIoUring ok")
 
 	return &ioUring{ring: ring, submitNum: 0}, nil
 }
