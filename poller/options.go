@@ -158,6 +158,7 @@ func getOptions(opts ...Option) *options {
 		ioEventQueueLen: 1024,
 		listenBacklog:   1024,
 		ioUringEntries:  1024,
+		ioUringParams:   &gouring.IoUringParams{},
 	}
 
 	for _, o := range opts {

@@ -9,6 +9,7 @@ import (
 	"unsafe"
 
 	"github.com/ii64/gouring"
+	"github.com/weedge/lib/log"
 )
 
 const (
@@ -29,7 +30,7 @@ func newIoUring(entries uint32, params *gouring.IoUringParams) (iouring *ioUring
 		return
 	}
 
-	if params.Features&reqFeatures == 0 {
+	if params != nil && params.Features&reqFeatures == 0 {
 		err = ErrIOUringFeaturesUnAvailable
 		ring.Close()
 		return
@@ -42,6 +43,7 @@ func newIoUring(entries uint32, params *gouring.IoUringParams) (iouring *ioUring
 	*/
 	ret, err := ring.RegisterRingFD()
 	if err != nil || ret < 0 {
+		log.Infof("ring.RegisterRingFD err %s", err.Error())
 		err = ErrIOUringRegisterFDFail
 		return
 	}

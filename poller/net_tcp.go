@@ -96,9 +96,11 @@ func addReadEvent(pollerFD, fd int) (err error) {
 }
 
 func closeFD(pollerFD, fd int) (err error) {
-	err = delEventFD(pollerFD, fd)
-	if err != nil {
-		return
+	if pollerFD > 0 {
+		err = delEventFD(pollerFD, fd)
+		if err != nil {
+			return
+		}
 	}
 
 	err = syscall.Close(fd)

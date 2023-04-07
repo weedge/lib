@@ -38,3 +38,5 @@ func (e *eventInfo) String() string {
 
 	return res
 }
+
+var noOpsEventCb = func(info *eventInfo) error { return nil }

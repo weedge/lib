@@ -1,6 +1,9 @@
 package main
 
 import (
+	"flag"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,18 +13,6 @@ import (
 	"github.com/weedge/lib/poller"
 )
 
-type MockDecoder struct {
-}
-
-func (*MockDecoder) Decode(c *poller.Conn) (err error) {
-	buff := c.GetBuff()
-	bytes := buff.ReadAll()
-	//log.Infof("read:%s len:%d bytes from fd:%d", bytes, len(bytes), c.GetFd())
-	_, err = c.Write(bytes)
-
-	return
-}
-
 type MockServerHandler struct {
 }
 
@@ -30,17 +21,35 @@ func (m *MockServerHandler) OnConnect(c *poller.Conn) {
 }
 
 func (m *MockServerHandler) OnMessage(c *poller.Conn, bytes []byte) {
+	log.Infof("read:%s len:%d bytes from fd:%d", bytes, len(bytes), c.GetFd())
+	c.Write(bytes)
 }
 
 func (m *MockServerHandler) OnClose(c *poller.Conn, err error) {
 	log.Infof("close: %d err: %s", c.GetFd(), err.Error())
 }
 
+var port = flag.String("port", "8081", "port")
+var msgSize = flag.Int("size", 512, "size")
+var ioMode = flag.String("ioMode", "", "ioMode")
+var mapIoMode = map[string]poller.IOMode{
+	"iouring": poller.IOModeUring,
+}
+
 func main() {
-	server, err := poller.NewServer(":8081", &MockServerHandler{}, poller.WithDecoder(&MockDecoder{}),
-		poller.WithTimeout(10*time.Second, 3600*time.Second), poller.WithReadBufferLen(128))
+	flag.Parse()
+
+	go func() {
+		if err := http.ListenAndServe(":6060", nil); err != nil {
+			log.Errorf("pprof failed: %v", err)
+			return
+		}
+	}()
+
+	server, err := poller.NewServer(":"+*port, &MockServerHandler{}, poller.WithIoMode(mapIoMode[*ioMode]),
+		poller.WithTimeout(10*time.Second, 3600*time.Second), poller.WithReadBufferLen(*msgSize))
 	if err != nil {
-		log.Info("err")
+		log.Info("err ", err.Error())
 		return
 	}
 

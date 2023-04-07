@@ -158,7 +158,7 @@ func (s *Server) accept() {
 				continue
 			}
 
-			conn := newConn(s.pollerFD, cfd, addr, s, s.options.ioMode)
+			conn := newConn(s.pollerFD, cfd, addr, s)
 			s.conns.Store(cfd, conn)
 			atomic.AddInt64(&s.connsNum, 1)
 			s.handler.OnConnect(conn)
@@ -192,7 +192,7 @@ func (s *Server) getAcceptCallback(rsa *syscall.RawSockaddrAny) EventCallBack {
 		}
 		addr := getAddr(socketAddr)
 
-		conn := newConn(s.pollerFD, e.fd, addr, s, s.options.ioMode)
+		conn := newConn(s.pollerFD, e.fd, addr, s)
 		s.conns.Store(e.fd, conn)
 		atomic.AddInt64(&s.connsNum, 1)
 

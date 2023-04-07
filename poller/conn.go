@@ -17,11 +17,10 @@ type Conn struct {
 	buffer       *Buffer     // Read the buffer
 	lastReadTime time.Time   // Time of last read
 	data         interface{} // Business custom data, used as an extension
-	ioMode       IOMode      // io mode
 }
 
 // newConn create tcp connection
-func newConn(pollerFD, fd int, addr string, server *Server, ioMode IOMode) *Conn {
+func newConn(pollerFD, fd int, addr string, server *Server) *Conn {
 	return &Conn{
 		server:       server,
 		pollerFD:     pollerFD,
@@ -29,7 +28,6 @@ func newConn(pollerFD, fd int, addr string, server *Server, ioMode IOMode) *Conn
 		addr:         addr,
 		buffer:       NewBuffer(server.readBufferPool.Get().([]byte)),
 		lastReadTime: time.Now(),
-		ioMode:       ioMode,
 	}
 }
 
@@ -103,9 +101,6 @@ func (c *Conn) getReadCallback() EventCallBack {
 // add async block read bytes event until read readBufferLen bytes from connect fd
 func (c *Conn) processReadEvent(e *eventInfo) (err error) {
 	for {
-		// if un use poll in ready, need add read event op again
-		c.AsyncBlockRead()
-
 		err = e.cb(e)
 		if err != nil {
 			// There is no data to read in the buffer
@@ -114,13 +109,15 @@ func (c *Conn) processReadEvent(e *eventInfo) (err error) {
 			}
 			return err
 		}
+		// if un use poll in ready, need add read event op again
+		c.AsyncBlockRead()
 	}
 }
 
 // AsyncBlockWrite
 // async block write bytes
 func (c *Conn) AsyncBlockWrite(bytes []byte) {
-	c.server.iouring.addSendSqe(func(info *eventInfo) error { return nil }, c.fd, bytes, len(bytes), 0)
+	c.server.iouring.addSendSqe(noOpsEventCb, c.fd, bytes, len(bytes), 0)
 	return
 }
 func (c *Conn) processWirteEvent(e *eventInfo) (err error) {
@@ -141,9 +138,14 @@ func (c *Conn) processWirteEvent(e *eventInfo) (err error) {
 	return
 }
 
-// Write
-// Writer impl, block write
+// Write Writer impl
+// notice: if use iouring async write to fd, return 0, nil
 func (c *Conn) Write(bytes []byte) (int, error) {
+	if c.server.options.ioMode == IOModeUring {
+		c.AsyncBlockWrite(bytes)
+		return 0, nil
+	}
+
 	return syscall.Write(c.fd, bytes)
 }
 
