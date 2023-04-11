@@ -61,16 +61,29 @@ func (c *Conn) Read() error {
 			return err
 		}
 
-		if c.server.options.decoder == nil {
-			c.server.handler.OnMessage(c, c.buffer.ReadAll())
+		err = c.MsgFilter()
+		if err != nil {
+			log.Errorf("msg filter err:%s", err.Error())
 			continue
 		}
-
-		err = c.server.options.decoder.Decode(c)
-		if err != nil {
-			return err
-		}
 	}
+}
+
+// MsgFilter
+// use msg decoder and onmessage handle
+func (c *Conn) MsgFilter() (err error) {
+	if c.server.options.decoder == nil {
+		c.server.handler.OnMessage(c, c.buffer.ReadAll())
+		return
+	}
+
+	val, err := c.server.options.decoder.Decode(c.buffer)
+	if err != nil {
+		return
+	}
+	c.server.handler.OnMessage(c, val)
+
+	return
 }
 
 // AsyncBlockRead  trigger a async kernerl block read from connect fd to buff
@@ -82,16 +95,7 @@ func (c *Conn) AsyncBlockRead() {
 
 func (c *Conn) getReadCallback() EventCallBack {
 	return func(e *eventInfo) (err error) {
-		if c.server.options.decoder == nil {
-			c.server.handler.OnMessage(c, c.buffer.ReadAll())
-			return
-		}
-
-		err = c.server.options.decoder.Decode(c)
-		if err != nil {
-			return
-		}
-
+		err = c.MsgFilter()
 		return
 	}
 }
@@ -100,26 +104,25 @@ func (c *Conn) getReadCallback() EventCallBack {
 // process connect read complete event
 // add async block read bytes event until read readBufferLen bytes from connect fd
 func (c *Conn) processReadEvent(e *eventInfo) (err error) {
-	for {
-		err = e.cb(e)
-		if err != nil {
-			// There is no data to read in the buffer
-			if err == syscall.EAGAIN {
-				return nil
-			}
-			return err
+	err = e.cb(e)
+	if err != nil {
+		// There is no data to read in the buffer
+		if err == syscall.EAGAIN {
+			return nil
 		}
-		// if un use poll in ready, need add read event op again
-		c.AsyncBlockRead()
+		return err
 	}
+	// if un use poll in ready, need add read event op again
+	c.AsyncBlockRead()
+	return
 }
 
 // AsyncBlockWrite
 // async block write bytes
 func (c *Conn) AsyncBlockWrite(bytes []byte) {
 	c.server.iouring.addSendSqe(noOpsEventCb, c.fd, bytes, len(bytes), 0)
-	return
 }
+
 func (c *Conn) processWirteEvent(e *eventInfo) (err error) {
 	if e.cqe.Res < 0 {
 		err = ErrIOUringWriteFail
@@ -128,11 +131,7 @@ func (c *Conn) processWirteEvent(e *eventInfo) (err error) {
 
 	err = e.cb(e)
 	if err != nil {
-		// There is no data to write to the buffer
-		if err == syscall.EAGAIN {
-			return nil
-		}
-		return err
+		return
 	}
 
 	return
@@ -162,7 +161,10 @@ func (c *Conn) Close() {
 	if err != nil {
 		log.Error(err)
 	}
+	c.CloseConnect()
+}
 
+func (c *Conn) CloseConnect() {
 	// Remove conn from conns
 	c.server.conns.Delete(c.fd)
 	// Return the cache

@@ -3,6 +3,8 @@ package poller
 import (
 	"io"
 	"syscall"
+
+	"github.com/weedge/lib/log"
 )
 
 // Buffer Read buffer, one read buffer for each tcp long connection
@@ -28,9 +30,14 @@ func (b *Buffer) reset() {
 	if b.start == 0 {
 		return
 	}
-	copy(b.buf, b.buf[b.start:b.end])
-	b.end -= b.start
+	end := b.end
+	if b.end > len(b.buf) {
+		end = len(b.buf)
+	}
+	copy(b.buf, b.buf[b.start:end])
+	end -= b.start
 	b.start = 0
+	b.end = end
 }
 
 // ReadFromFD reads data from the file descriptor
@@ -48,7 +55,7 @@ func (b *Buffer) ReadFromFD(fd int) error {
 }
 
 // AsyncReadFromFD
-// async block read event from fd to buff
+// async block read event from fd to buf
 func (b *Buffer) AsyncReadFromFD(fd int, uring *ioUring, cb EventCallBack) error {
 	b.reset()
 	uring.addRecvSqe(func(info *eventInfo) error {
@@ -60,8 +67,11 @@ func (b *Buffer) AsyncReadFromFD(fd int, uring *ioUring, cb EventCallBack) error
 			return syscall.EAGAIN
 		}
 		b.end += int(n)
-		return cb(info)
-	}, len(b.buf[b.end:]), b.buf[b.end:], 0)
+		log.Infof("cb %+v buff start %d end %d n %d buff %s",
+			cb, b.start, b.end, n, b.buf[b.start:b.end])
+		err := cb(info)
+		return err
+	}, fd, b.buf[b.end:], len(b.buf[b.end:]), 0)
 
 	return nil
 }
@@ -79,7 +89,7 @@ func (b *Buffer) ReadFromReader(reader io.Reader) (int, error) {
 
 // Seek returns n bytes without a shift, or an error if there are not enough bytes
 func (b *Buffer) Seek(len int) ([]byte, error) {
-	if b.end-b.start <= len {
+	if b.end-b.start >= len {
 		buf := b.buf[b.start : b.start+len]
 		return buf, nil
 	}

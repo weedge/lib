@@ -13,17 +13,18 @@ import (
 
 // Server TCP server
 type Server struct {
-	options        *options          // Service parameters
-	readBufferPool *sync.Pool        // Read cache memory pool
-	handler        Handler           // Indicates the processing of registration
-	ioEventQueues  []chan *eventInfo // IO A collection of event queues
-	ioQueueNum     int               // Number of I/O event queues
-	conns          sync.Map          // TCP long connection management
-	connsNum       int64             // Indicates the number of established long connections
-	stop           chan int          // Indicates the server shutdown signal
-	listenFD       int               // listen fd
-	pollerFD       int               // event poller fd (epoll/kqueue, poll, select)
-	iouring        *ioUring          // iouring async event
+	options        *options                    // Service parameters
+	readBufferPool *sync.Pool                  // Read cache memory pool
+	handler        Handler                     // Indicates the processing of registration
+	ioEventQueues  []chan *eventInfo           // IO A collection of event queues
+	ioQueueNum     int                         // Number of I/O event queues
+	conns          sync.Map                    // TCP long connection management
+	connsNum       int64                       // Indicates the number of established long connections
+	stop           chan int                    // Indicates the server shutdown signal
+	listenFD       int                         // listen fd
+	pollerFD       int                         // event poller fd (epoll/kqueue, poll, select)
+	iouring        *ioUring                    // iouring async event
+	asyncEventCb   map[EventType]EventCallBack // async event call back register
 }
 
 // NewServer
@@ -82,7 +83,12 @@ func NewServer(address string, handler Handler, opts ...Option) (*Server, error)
 		listenFD:       lfd,
 		pollerFD:       pollerFD,
 		iouring:        ring,
+		asyncEventCb:   map[EventType]EventCallBack{},
 	}, nil
+}
+
+func (s *Server) registerEventCb() {
+
 }
 
 // GetConn
@@ -131,7 +137,7 @@ func (s *Server) Stop() {
 // setup accept connect goroutine
 func (s *Server) startAcceptor() {
 	if s.iouring != nil {
-		s.asyncBlockAccept()
+		go s.asyncBlockAccept()
 		log.Info("start trigger async block accept")
 		return
 	}
@@ -187,7 +193,13 @@ func (s *Server) asyncBlockAccept() {
 
 func (s *Server) getAcceptCallback(rsa *syscall.RawSockaddrAny) EventCallBack {
 	return func(e *eventInfo) (err error) {
-		err = setConnectOption(e.fd, s.options.keepaliveInterval)
+		if e.cqe.Res < 0 {
+			err = fmt.Errorf("accept err res %d", e.cqe.Res)
+			return
+		}
+
+		cfd := int(e.cqe.Res)
+		err = setConnectOption(cfd, s.options.keepaliveInterval)
 		if err != nil {
 			return
 		}
@@ -198,13 +210,16 @@ func (s *Server) getAcceptCallback(rsa *syscall.RawSockaddrAny) EventCallBack {
 		}
 		addr := getAddr(socketAddr)
 
-		conn := newConn(s.pollerFD, e.fd, addr, s)
-		s.conns.Store(e.fd, conn)
+		conn := newConn(s.pollerFD, cfd, addr, s)
+		s.conns.Store(cfd, conn)
 		atomic.AddInt64(&s.connsNum, 1)
+		s.handler.OnConnect(conn)
 
+		// new connected client, async read data from socket
 		conn.AsyncBlockRead()
 
-		s.handler.OnConnect(conn)
+		// re-add accept to monitor for new connections
+		s.asyncBlockAccept()
 
 		return
 	}
@@ -257,8 +272,17 @@ func (s *Server) startIOUringPollDispatcher() {
 		default:
 			event, err := s.iouring.getEventInfo()
 			if err != nil {
-				log.Errorf("iouring get events error:%s continue", err.Error())
-				return
+				/*
+					if err == ErrIOUringSubmitFail {
+						log.Errorf("iouring get events error:%s return", err.Error())
+						return
+					}
+				*/
+				log.Warnf("iouring get events error:%s continue", err.Error())
+				continue
+			}
+			if event == nil {
+				continue
 			}
 
 			// dispatch
@@ -301,40 +325,20 @@ func (s *Server) consumeIOCompletionEvent(queue chan *eventInfo) {
 	for event := range queue {
 		// process async accept connect complete event
 		if event.etype == ETypeAccept {
-			if event.cqe.Res < 0 {
-				log.Errorf("[error] connect failed connFd %d, continue next event", event.cqe.Res)
-				continue
-			}
-
 			err := event.cb(event)
 			if err != nil {
-				log.Errorf("accept event cb error:%s, continue next event", err.Error())
-				continue
+				log.Errorf("accept event %s cb error:%s, continue next event", event, err.Error())
 			}
-			// new connected client; read data from socket and re-add accept to monitor for new connections
-			s.asyncBlockAccept()
 			continue
 		}
 
 		// get connect from fd
 		v, ok := s.conns.Load(event.fd)
 		if !ok {
-			log.Errorf("fd %d not found in conns, continue next event", event.fd)
+			log.Errorf("fd %d not found in conns, event:%s , continue next event", event.fd, event)
 			continue
 		}
 		c := v.(*Conn)
-
-		// process close event
-		switch event.etype {
-		case ETypeClose:
-			c.Close()
-			s.handler.OnClose(c, io.EOF)
-			continue
-		case ETypeTimeout:
-			c.Close()
-			s.handler.OnClose(c, ErrReadTimeout)
-			continue
-		}
 
 		// process async read complete event
 		if event.etype == ETypeRead {
@@ -350,7 +354,7 @@ func (s *Server) consumeIOCompletionEvent(queue chan *eventInfo) {
 				// no bytes available on socket, client must be disconnected
 				log.Warnf("process read event %s err:%s , client connect must be disconnected", event, err.Error())
 				// close and free connect
-				c.Close()
+				c.CloseConnect()
 				s.handler.OnClose(c, err)
 			}
 		}

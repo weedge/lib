@@ -42,18 +42,16 @@ func (d *headerLenDecoder) DecodeBuffer(buffer *Buffer) (value []byte, err error
 	return
 }
 
-func (d *headerLenDecoder) Decode(c *Conn) error {
-	for {
-		value, err := d.DecodeBuffer(c.buffer)
-		if err == ErrBufferNotEnough {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-
-		c.server.handler.OnMessage(c, value)
+func (d *headerLenDecoder) Decode(buffer *Buffer) (value []byte, err error) {
+	value, err = d.DecodeBuffer(buffer)
+	if err == ErrBufferNotEnough {
+		return []byte{}, nil
 	}
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 type headerLenEncoder struct {

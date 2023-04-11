@@ -13,6 +13,16 @@ import (
 	"github.com/weedge/lib/poller"
 )
 
+type MockDecoder struct {
+}
+
+func (m *MockDecoder) Decode(buffer *poller.Buffer) (bytes []byte, err error) {
+	bytes = buffer.ReadAll()
+	log.Infof("decode buffer :%s len:%d bytes", bytes, len(bytes))
+
+	return bytes, nil
+}
+
 type MockServerHandler struct {
 }
 
@@ -46,7 +56,8 @@ func main() {
 		}
 	}()
 
-	server, err := poller.NewServer(":"+*port, &MockServerHandler{}, poller.WithIoMode(mapIoMode[*ioMode]),
+	server, err := poller.NewServer(":"+*port, &MockServerHandler{}, poller.WithDecoder(&MockDecoder{}),
+		poller.WithIoMode(mapIoMode[*ioMode]),
 		poller.WithTimeout(10*time.Second, 3600*time.Second), poller.WithReadBufferLen(*msgSize))
 	if err != nil {
 		log.Info("err ", err.Error())

@@ -12,6 +12,7 @@ var (
 
 	ErrIOUringFeaturesUnAvailable = errors.New("required IORING_FEAT_SINGLE_MMAP | IORING_FEAT_FAST_POLL | IORING_FEAT_NODROP not available in the kernel")
 	ErrIOUringRegisterFDFail      = errors.New("iouring register fd failed")
+	ErrIOUringSubmitEmpty         = errors.New("iouring submit empty")
 	ErrIOUringSubmitFail          = errors.New("iouring submit failed")
 	ErrIOUringSubmitedNoFull      = errors.New("iouring submited no full")
 	ErrIOUringWaitCqeFail         = errors.New("iouring wait cqe failed")
@@ -28,7 +29,7 @@ type Handler interface {
 
 // Decoder
 type Decoder interface {
-	Decode(c *Conn) error
+	Decode(buffer *Buffer) ([]byte, error)
 }
 
 // Encoder

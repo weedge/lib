@@ -17,8 +17,10 @@ const (
 )
 
 type ioUring struct {
-	submitNum int64            // submit num for io_uring_enter submited check
-	ring      *gouring.IoUring // liburing ring obj
+	//submitNum    int64            // submit num for io_uring_enter submited check
+	spins        int64            // spins count for submit and wait timeout
+	ring         *gouring.IoUring // liburing ring obj
+	submitSignal chan struct{}    // submit signal
 }
 
 // newIoUring
@@ -40,6 +42,7 @@ func newIoUring(entries uint32, params *gouring.IoUringParams) (iouring *ioUring
 			Note:
 			When the ring descriptor is registered, it is stored internally in the struct io_uring structure.
 			For applications that share a ring between threads, for example having one thread do submits and another reap events, then this optimization cannot be used as each thread may have a different index for the registered ring fd.
+
 		ret, err := ring.RegisterRingFD()
 		if err != nil || ret < 0 {
 			log.Errorf("ring.RegisterRingFD err %s", err.Error())
@@ -50,7 +53,7 @@ func newIoUring(entries uint32, params *gouring.IoUringParams) (iouring *ioUring
 
 	log.Infof("newIoUring ok")
 
-	return &ioUring{ring: ring, submitNum: 0}, nil
+	return &ioUring{ring: ring, submitSignal: make(chan struct{})}, nil
 }
 
 func (m *ioUring) CloseRing() {
@@ -59,20 +62,23 @@ func (m *ioUring) CloseRing() {
 
 // getEventInfo io_uring submit and wait cqe for reap event
 func (m *ioUring) getEventInfo() (info *eventInfo, err error) {
-	submited, err := m.ring.Submit()
-	if err != nil {
+	if atomic.AddInt64(&m.spins, 1) <= 20 {
 		return
 	}
-	if atomic.LoadInt64(&m.submitNum) != int64(submited) {
-		err = ErrIOUringSubmitedNoFull
-		return
-	}
-	atomic.StoreInt64(&m.submitNum, 0)
+	atomic.StoreInt64(&m.spins, 0)
 
 	var cqe *gouring.IoUringCqe
-	err = m.ring.WaitCqe(&cqe)
+	// submit wait 1 us timeout, todo: use sync call install async callback
+	err = m.ring.SubmitAndWaitTimeOut(&cqe, 1, 1, nil)
 	if err != nil {
-		err = ErrIOUringWaitCqeFail
+		if err == syscall.ETIME || err == syscall.EINTR {
+			err = nil
+		}
+		return
+	}
+
+	if cqe.UserData.GetUnsafe() == nil {
+		// Own timeout doesn't have user data
 		return
 	}
 
@@ -92,6 +98,7 @@ func (m *ioUring) getEventInfos(infos []*eventInfo, err error) {
 
 func (m *ioUring) addAcceptSqe(cb EventCallBack, lfd int,
 	clientAddr *syscall.RawSockaddrAny, clientAddrLen uint32, flags uint8) {
+	println("addAcceptSqe")
 	sqe := m.ring.GetSqe()
 	gouring.PrepAccept(sqe, lfd, clientAddr, (*uintptr)(unsafe.Pointer(&clientAddrLen)), 0)
 	sqe.Flags = flags
@@ -103,36 +110,47 @@ func (m *ioUring) addAcceptSqe(cb EventCallBack, lfd int,
 	}
 
 	sqe.UserData.SetUnsafe(unsafe.Pointer(eventInfo))
-
-	atomic.AddInt64(&m.submitNum, 1)
+	//atomic.AddInt64(&m.submitNum, 1)
 }
 
-func (m *ioUring) addRecvSqe(cb EventCallBack, cfd int, buff []byte, flags uint8) {
+func (m *ioUring) addRecvSqe(cb EventCallBack, cfd int, buff []byte, size int, flags uint8) {
+	println("addRecvSqe")
+	var buf *byte
+	if len(buff) > 0 {
+		buf = &buff[0]
+	}
 	sqe := m.ring.GetSqe()
-	gouring.PrepRecv(sqe, cfd, &buff[0], len(buff), uint(flags))
+	gouring.PrepRecv(sqe, cfd, buf, size, uint(flags))
 	sqe.Flags = flags
 
 	eventInfo := eventInfo{
 		fd:    cfd,
 		etype: ETypeRead,
+		cb:    cb,
 	}
 
 	sqe.UserData.SetUnsafe(unsafe.Pointer(&eventInfo))
-	atomic.AddInt64(&m.submitNum, 1)
+	//atomic.AddInt64(&m.submitNum, 1)
 }
 
 func (m *ioUring) addSendSqe(cb EventCallBack, cfd int, buff []byte, msgSize int, flags uint8) {
+	println("addSendSqe")
+	var buf *byte
+	if len(buff) > 0 {
+		buf = &buff[0]
+	}
 	sqe := m.ring.GetSqe()
-	gouring.PrepSend(sqe, cfd, &buff[0], msgSize, uint(flags))
+	gouring.PrepSend(sqe, cfd, buf, msgSize, uint(flags))
 	sqe.Flags = flags
 
 	eventInfo := eventInfo{
 		fd:    cfd,
 		etype: ETypeWrite,
+		cb:    cb,
 	}
 
 	sqe.UserData.SetUnsafe(unsafe.Pointer(&eventInfo))
-	atomic.AddInt64(&m.submitNum, 1)
+	//atomic.AddInt64(&m.submitNum, 1)
 }
 
 func (m *ioUring) cqeDone(cqe *gouring.IoUringCqe) {
