@@ -12,7 +12,7 @@ type eventInfo struct {
 	bid   uint16              // buff id in pool group
 	gid   uint16              // buff group id
 	cb    EventCallBack       // callback
-	cqe   *gouring.IoUringCqe // iouring complete queue entry for reap event
+	cqe   gouring.IoUringCqe // iouring complete queue entry for reap event
 }
 
 type EventType uint16
@@ -32,9 +32,12 @@ const (
 )
 
 func (e *eventInfo) String() string {
-	res := fmt.Sprintf(
-		"fd:%d etype:%d bid:%d gid:%d cb:%v cqe:%v",
-		e.fd, e.etype, e.bid, e.gid, e.cb, e.cqe)
+	res := ""
+	if e != nil {
+		res = fmt.Sprintf(
+			"fd:%d etype:%d bid:%d gid:%d cb:%v cqe:%v",
+			e.fd, e.etype, e.bid, e.gid, e.cb, e.cqe)
+	}
 
 	return res
 }

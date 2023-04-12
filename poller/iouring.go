@@ -4,6 +4,7 @@
 package poller
 
 import (
+	"errors"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
@@ -61,6 +62,7 @@ func (m *ioUring) CloseRing() {
 }
 
 // getEventInfo io_uring submit and wait cqe for reap event
+// notice: gc
 func (m *ioUring) getEventInfo() (info *eventInfo, err error) {
 	if atomic.AddInt64(&m.spins, 1) <= 20 {
 		return
@@ -68,7 +70,7 @@ func (m *ioUring) getEventInfo() (info *eventInfo, err error) {
 	atomic.StoreInt64(&m.spins, 0)
 
 	var cqe *gouring.IoUringCqe
-	// submit wait 1 us timeout, todo: use sync call install async callback
+	// submit wait at least 1 cqe and wait 1 us timeout, todo: use sync call instead of async callback
 	err = m.ring.SubmitAndWaitTimeOut(&cqe, 1, 1, nil)
 	if err != nil {
 		if err == syscall.ETIME || err == syscall.EINTR {
@@ -79,11 +81,21 @@ func (m *ioUring) getEventInfo() (info *eventInfo, err error) {
 
 	if cqe.UserData.GetUnsafe() == nil {
 		// Own timeout doesn't have user data
+		err = errors.New("no user data")
 		return
 	}
 
-	info = (*eventInfo)(cqe.UserData.GetUnsafe())
-	info.cqe = cqe
+	infoPtr := (*eventInfo)(cqe.UserData.GetUnsafe())
+	if infoPtr != nil && (infoPtr.cb == nil || infoPtr.etype == ETypeUnknow) {
+		err = errors.New("error event infoPtr")
+		return
+	}
+	//notice: deep copy, don't to gc (unsafe ponter no write barrier, mark white will be sweep)
+	data := *infoPtr
+	data.cqe = *cqe
+	info = &data
+
+	log.Infof("get event info: %s", info)
 
 	return
 }
@@ -153,6 +165,6 @@ func (m *ioUring) addSendSqe(cb EventCallBack, cfd int, buff []byte, msgSize int
 	//atomic.AddInt64(&m.submitNum, 1)
 }
 
-func (m *ioUring) cqeDone(cqe *gouring.IoUringCqe) {
-	m.ring.SeenCqe(cqe)
+func (m *ioUring) cqeDone(cqe gouring.IoUringCqe) {
+	m.ring.SeenCqe(&cqe)
 }

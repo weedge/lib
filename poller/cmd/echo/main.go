@@ -18,7 +18,7 @@ type MockDecoder struct {
 
 func (m *MockDecoder) Decode(buffer *poller.Buffer) (bytes []byte, err error) {
 	bytes = buffer.ReadAll()
-	log.Infof("decode buffer :%s len:%d bytes", bytes, len(bytes))
+	//log.Infof("decode buffer :%s len:%d bytes", bytes, len(bytes))
 
 	return bytes, nil
 }
@@ -31,7 +31,7 @@ func (m *MockServerHandler) OnConnect(c *poller.Conn) {
 }
 
 func (m *MockServerHandler) OnMessage(c *poller.Conn, bytes []byte) {
-	log.Infof("read:%s len:%d bytes from fd:%d", bytes, len(bytes), c.GetFd())
+	//log.Infof("read:%s len:%d bytes from fd:%d", bytes, len(bytes), c.GetFd())
 	c.Write(bytes)
 }
 
@@ -48,6 +48,7 @@ var mapIoMode = map[string]poller.IOMode{
 
 func main() {
 	flag.Parse()
+	//runtime.GOMAXPROCS(1)
 
 	go func() {
 		if err := http.ListenAndServe(":6060", nil); err != nil {

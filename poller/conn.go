@@ -86,7 +86,7 @@ func (c *Conn) MsgFilter() (err error) {
 	return
 }
 
-// AsyncBlockRead  trigger a async kernerl block read from connect fd to buff
+// AsyncBlockRead  trigger a async kernerl block read from connect socket fd to buff
 func (c *Conn) AsyncBlockRead() {
 	c.lastReadTime = time.Now()
 	fd := c.GetFd()

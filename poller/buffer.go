@@ -3,8 +3,6 @@ package poller
 import (
 	"io"
 	"syscall"
-
-	"github.com/weedge/lib/log"
 )
 
 // Buffer Read buffer, one read buffer for each tcp long connection
@@ -67,8 +65,7 @@ func (b *Buffer) AsyncReadFromFD(fd int, uring *ioUring, cb EventCallBack) error
 			return syscall.EAGAIN
 		}
 		b.end += int(n)
-		log.Infof("cb %+v buff start %d end %d n %d buff %s",
-			cb, b.start, b.end, n, b.buf[b.start:b.end])
+		//log.Infof("cb %+v buff start %d end %d n %d buff %s", cb, b.start, b.end, n, b.buf[b.start:b.end])
 		err := cb(info)
 		return err
 	}, fd, b.buf[b.end:], len(b.buf[b.end:]), 0)

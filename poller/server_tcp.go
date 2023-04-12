@@ -267,17 +267,11 @@ func (s *Server) startIOUringPollDispatcher() {
 	for {
 		select {
 		case <-s.stop:
-			log.Error("stop io_uring event op poll dispatcher")
+			log.Info("stop io_uring event op poll dispatcher")
 			return
 		default:
 			event, err := s.iouring.getEventInfo()
 			if err != nil {
-				/*
-					if err == ErrIOUringSubmitFail {
-						log.Errorf("iouring get events error:%s return", err.Error())
-						return
-					}
-				*/
 				log.Warnf("iouring get events error:%s continue", err.Error())
 				continue
 			}
