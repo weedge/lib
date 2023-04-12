@@ -90,10 +90,14 @@ func (m *ioUring) getEventInfo() (info *eventInfo, err error) {
 		err = errors.New("error event infoPtr")
 		return
 	}
-	//notice: deep copy, don't to gc (unsafe ponter no write barrier, mark white will be sweep)
-	data := *infoPtr
-	data.cqe = *cqe
-	info = &data
+	info = &eventInfo{
+		fd:    infoPtr.fd,
+		etype: infoPtr.etype,
+		bid:   infoPtr.bid,
+		gid:   infoPtr.gid,
+		cb:    infoPtr.cb,
+		cqe:   *cqe,
+	}
 
 	log.Infof("get event info: %s", info)
 
