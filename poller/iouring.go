@@ -108,6 +108,7 @@ func (m *ioUring) getEventInfo() (info *eventInfo, err error) {
 		err = errors.New("error event infoPtr")
 		return
 	}
+	//https://github.com/golang/go/issues/20135
 	delete(m.mapUserDataEvent, cqe.UserData)
 	m.userDataEventLock.Unlock()
 
