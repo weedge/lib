@@ -5,6 +5,8 @@ package poller
 
 import (
 	"errors"
+	"fmt"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
@@ -19,9 +21,11 @@ const (
 
 type ioUring struct {
 	//submitNum    int64            // submit num for io_uring_enter submited check
-	spins        int64            // spins count for submit and wait timeout
-	ring         *gouring.IoUring // liburing ring obj
-	submitSignal chan struct{}    // submit signal
+	spins             int64                           // spins count for submit and wait timeout
+	ring              *gouring.IoUring                // liburing ring obj
+	submitSignal      chan struct{}                   // submit signal
+	mapUserDataEvent  map[gouring.UserData]*eventInfo // user data from cqe to event info
+	userDataEventLock sync.RWMutex                    // rwlock for mapUserDataEvent
 }
 
 // newIoUring
@@ -54,11 +58,17 @@ func newIoUring(entries uint32, params *gouring.IoUringParams) (iouring *ioUring
 
 	log.Infof("newIoUring ok")
 
-	return &ioUring{ring: ring, submitSignal: make(chan struct{})}, nil
+	return &ioUring{
+		ring:             ring,
+		submitSignal:     make(chan struct{}),
+		mapUserDataEvent: make(map[gouring.UserData]*eventInfo),
+	}, nil
 }
 
 func (m *ioUring) CloseRing() {
-	m.ring.Close()
+	if m.ring != nil {
+		m.ring.Close()
+	}
 }
 
 // getEventInfo io_uring submit and wait cqe for reap event
@@ -69,35 +79,39 @@ func (m *ioUring) getEventInfo() (info *eventInfo, err error) {
 	}
 	atomic.StoreInt64(&m.spins, 0)
 
-	var cqe *gouring.IoUringCqe
+	var cqeData *gouring.IoUringCqe
 	// submit wait at least 1 cqe and wait 1 us timeout, todo: use sync call instead of async callback
-	err = m.ring.SubmitAndWaitTimeOut(&cqe, 1, 1, nil)
+	err = m.ring.SubmitAndWaitTimeOut(&cqeData, 1, 1, nil)
 	if err != nil {
 		if err == syscall.ETIME || err == syscall.EINTR {
 			err = nil
 		}
 		return
 	}
-
-	if cqe.UserData.GetUnsafe() == nil {
-		// Own timeout doesn't have user data
-		err = errors.New("no user data")
+	if cqeData == nil {
 		return
 	}
 
-	infoPtr := (*eventInfo)(cqe.UserData.GetUnsafe())
-	if infoPtr != nil && (infoPtr.cb == nil || infoPtr.etype == ETypeUnknow) {
+	cqe := *cqeData
+	if cqe.UserData.GetUnsafe() == nil {
+		// Own timeout doesn't have user data
+		errStr := fmt.Sprintf("no user data, cqe:%+v", cqe)
+		err = errors.New(errStr)
+		return
+	}
+
+	m.userDataEventLock.Lock()
+	info = m.mapUserDataEvent[cqe.UserData]
+	//info = (*eventInfo)(cqe.UserData.GetUnsafe())
+	if info != nil && (info.cb == nil || info.etype == ETypeUnknow) {
+		m.userDataEventLock.Unlock()
 		err = errors.New("error event infoPtr")
 		return
 	}
-	info = &eventInfo{
-		fd:    infoPtr.fd,
-		etype: infoPtr.etype,
-		bid:   infoPtr.bid,
-		gid:   infoPtr.gid,
-		cb:    infoPtr.cb,
-		cqe:   *cqe,
-	}
+	delete(m.mapUserDataEvent, cqe.UserData)
+	m.userDataEventLock.Unlock()
+
+	info.cqe = cqe
 
 	log.Infof("get event info: %s", info)
 
@@ -126,7 +140,9 @@ func (m *ioUring) addAcceptSqe(cb EventCallBack, lfd int,
 	}
 
 	sqe.UserData.SetUnsafe(unsafe.Pointer(eventInfo))
-	//atomic.AddInt64(&m.submitNum, 1)
+	m.userDataEventLock.Lock()
+	m.mapUserDataEvent[sqe.UserData] = eventInfo
+	m.userDataEventLock.Unlock()
 }
 
 func (m *ioUring) addRecvSqe(cb EventCallBack, cfd int, buff []byte, size int, flags uint8) {
@@ -139,14 +155,16 @@ func (m *ioUring) addRecvSqe(cb EventCallBack, cfd int, buff []byte, size int, f
 	gouring.PrepRecv(sqe, cfd, buf, size, uint(flags))
 	sqe.Flags = flags
 
-	eventInfo := eventInfo{
+	eventInfo := &eventInfo{
 		fd:    cfd,
 		etype: ETypeRead,
 		cb:    cb,
 	}
 
-	sqe.UserData.SetUnsafe(unsafe.Pointer(&eventInfo))
-	//atomic.AddInt64(&m.submitNum, 1)
+	sqe.UserData.SetUnsafe(unsafe.Pointer(eventInfo))
+	m.userDataEventLock.Lock()
+	m.mapUserDataEvent[sqe.UserData] = eventInfo
+	m.userDataEventLock.Unlock()
 }
 
 func (m *ioUring) addSendSqe(cb EventCallBack, cfd int, buff []byte, msgSize int, flags uint8) {
@@ -159,14 +177,16 @@ func (m *ioUring) addSendSqe(cb EventCallBack, cfd int, buff []byte, msgSize int
 	gouring.PrepSend(sqe, cfd, buf, msgSize, uint(flags))
 	sqe.Flags = flags
 
-	eventInfo := eventInfo{
+	eventInfo := &eventInfo{
 		fd:    cfd,
 		etype: ETypeWrite,
 		cb:    cb,
 	}
 
-	sqe.UserData.SetUnsafe(unsafe.Pointer(&eventInfo))
-	//atomic.AddInt64(&m.submitNum, 1)
+	sqe.UserData.SetUnsafe(unsafe.Pointer(eventInfo))
+	m.userDataEventLock.Lock()
+	m.mapUserDataEvent[sqe.UserData] = eventInfo
+	m.userDataEventLock.Unlock()
 }
 
 func (m *ioUring) cqeDone(cqe gouring.IoUringCqe) {

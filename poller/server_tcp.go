@@ -3,7 +3,6 @@ package poller
 import (
 	"fmt"
 	"io"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -229,7 +228,7 @@ func (s *Server) getAcceptCallback(rsa *syscall.RawSockaddrAny) EventCallBack {
 // startIOEventLooper
 // from poller events or io_uring cqe event entries
 func (s *Server) startIOEventLooper() {
-	runtime.LockOSThread()
+	//runtime.LockOSThread()
 	if s.iouring != nil {
 		s.startIOUringPollDispatcher()
 	} else {

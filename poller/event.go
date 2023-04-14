@@ -7,11 +7,11 @@ import (
 )
 
 type eventInfo struct {
-	fd    int                 // file desc no
-	etype EventType           // event type
-	bid   uint16              // buff id in pool group
-	gid   uint16              // buff group id
-	cb    EventCallBack       // callback
+	fd    int                // file desc no
+	etype EventType          // event type
+	bid   uint16             // buff id in pool group
+	gid   uint16             // buff group id
+	cb    EventCallBack      // callback
 	cqe   gouring.IoUringCqe // iouring complete queue entry for reap event
 }
 
@@ -31,15 +31,31 @@ const (
 	ETypePollInRead // kenerl poll in event ready
 )
 
+var noOpsEventCb = func(info *eventInfo) error { return nil }
+
 func (e *eventInfo) String() string {
 	res := ""
 	if e != nil {
-		res = fmt.Sprintf(
-			"fd:%d etype:%d bid:%d gid:%d cb:%v cqe:%v",
+		res = fmt.Sprintf("fd:%d etype:%d bid:%d gid:%d cb:%v cqe:%v",
 			e.fd, e.etype, e.bid, e.gid, e.cb, e.cqe)
 	}
 
 	return res
 }
 
-var noOpsEventCb = func(info *eventInfo) error { return nil }
+/*
+// no reflect.DeepCopy issue detail: https://github.com/golang/go/issues/51520
+// so use the 3rd  go-clone for function
+func (e *eventInfo) Clone() (newOne *eventInfo) {
+	goClone.SetCustomFunc(reflect.TypeOf(eventInfo{}), func(allocator *goClone.Allocator, old, new reflect.Value) {
+		oldField := old.FieldByName("cb")
+		newField := new.FieldByName("cb")
+		//f := unsafe.Pointer(uintptr(unsafe.Pointer(e)) + unsafe.Offsetof(e.cb))
+
+		newField.SetPointer(oldField.UnsafePointer())
+	})
+
+	newOne = goClone.Clone(e).(*eventInfo)
+	return
+}
+*/
