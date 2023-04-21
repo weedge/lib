@@ -22,7 +22,6 @@ const (
 )
 
 func createPoller() (pollFD int, err error) {
-	println(unix.EPOLLIN, unix.EPOLLPRI, unix.EPOLLERR, unix.EPOLLHUP, unix.EPOLLET, unix.EPOLLRDHUP)
 	pollFD, err = syscall.EpollCreate1(0)
 	if err != nil {
 		return
