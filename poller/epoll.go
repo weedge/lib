@@ -13,13 +13,16 @@ import (
 
 const (
 	// man epoll_ctl  see EPOLL_EVENTS detail
-	EpollReadEvents = unix.EPOLLIN | unix.EPOLLPRI | unix.EPOLLERR | unix.EPOLLHUP | unix.EPOLLET | unix.EPOLLRDHUP
+	//1 2 8 16 8192 2147483648
+	EpollReadEvents = unix.EPOLLIN | unix.EPOLLPRI | unix.EPOLLERR | unix.EPOLLHUP | unix.EPOLLRDHUP | unix.EPOLLET
 	EpollPeerClose  = unix.EPOLLIN | unix.EPOLLRDHUP
+	EpollRead       = unix.EPOLLIN
 	EpollErr        = unix.EPOLLIN | unix.EPOLLERR
-	EpollRead       = unix.EPOLLIN | unix.EPOLLET
+	EpollReadErr    = unix.EPOLLIN | unix.EPOLLERR | unix.EPOLLHUP | unix.EPOLLRDHUP
 )
 
 func createPoller() (pollFD int, err error) {
+	println(unix.EPOLLIN, unix.EPOLLPRI, unix.EPOLLERR, unix.EPOLLHUP, unix.EPOLLET, unix.EPOLLRDHUP)
 	pollFD, err = syscall.EpollCreate1(0)
 	if err != nil {
 		return
@@ -57,16 +60,23 @@ func getEvents(pollFD int) ([]eventInfo, error) {
 		event := eventInfo{
 			fd: int(epollEvents[i].Fd),
 		}
-		if epollEvents[i].Events == EpollPeerClose {
-			event.etype = ETypeClose
-		} else if epollEvents[i].Events == EpollErr {
-			log.Errorf("epoll wait err %d event %v", EpollErr, epollEvents[i])
-		} else if epollEvents[i].Events == EpollRead {
+		if epollEvents[i].Events == EpollRead { // likely
 			event.etype = ETypeIn
-		} else {
-			//event.etype = ETypeIn
+			events = append(events, event)
+		} else if epollEvents[i].Events == EpollPeerClose { // likely
+			event.etype = ETypeClose
+			events = append(events, event)
+		} else if epollEvents[i].Events == EpollErr { // unlikely
+			log.Errorf("epoll wait err %d event %v", EpollErr, epollEvents[i])
+			event.etype = ETypeClose
+			events = append(events, event)
+		} else if epollEvents[i].Events == EpollReadErr { // unlikely
+			log.Errorf("epoll wait read err %d event %v", EpollRead, epollEvents[i])
+			event.etype = ETypeClose
+			events = append(events, event)
+		} else { // unlikely
+			log.Errorf("epoll wait other event %v", epollEvents[i])
 		}
-		events = append(events, event)
 	}
 	//sort.Slice(events, func(i, j int) bool { return events[i].etype < events[j].etype })
 

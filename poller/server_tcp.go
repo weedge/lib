@@ -398,7 +398,7 @@ func (s *Server) consumeIOReadyEvent(queue chan *eventInfo) {
 			}
 
 			// no bytes available on socket, client must be disconnected
-			log.Warnf("process sync read err:%s , client connect must be disconnected", err.Error())
+			log.Warnf("process sync read connect fd %d err:%s , client connect must be disconnected", c.fd, err.Error())
 			// close and free connect
 			c.Close()
 			s.handler.OnClose(c, err)
