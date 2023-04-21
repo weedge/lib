@@ -66,11 +66,11 @@ func getEvents(pollFD int) ([]eventInfo, error) {
 			event.etype = ETypeClose
 			events = append(events, event)
 		} else if epollEvents[i].Events == EpollErr { // unlikely
-			log.Errorf("epoll wait err %d event %v", EpollErr, epollEvents[i])
+			log.Errorf("epoll wait err event %v", epollEvents[i])
 			event.etype = ETypeClose
 			events = append(events, event)
 		} else if epollEvents[i].Events == EpollReadErr { // unlikely
-			log.Errorf("epoll wait read err %d event %v", EpollRead, epollEvents[i])
+			log.Errorf("epoll wait read err event %v", epollEvents[i])
 			event.etype = ETypeClose
 			events = append(events, event)
 		} else { // unlikely
