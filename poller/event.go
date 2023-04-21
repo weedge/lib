@@ -2,17 +2,19 @@ package poller
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/ii64/gouring"
 )
 
 type eventInfo struct {
-	fd    int                // file desc no
-	etype EventType          // event type
-	bid   uint16             // buff id in pool group
-	gid   uint16             // buff group id
-	cb    EventCallBack      // callback
-	cqe   gouring.IoUringCqe // iouring complete queue entry for reap event
+	fd      int                // file desc no
+	etype   EventType          // event type
+	bid     uint16             // buff id in pool group
+	gid     uint16             // buff group id
+	cb      EventCallBack      // callback
+	cqe     gouring.IoUringCqe // iouring complete queue entry for reap event
+	timeOut time.Duration
 }
 
 type EventType uint16

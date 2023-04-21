@@ -31,6 +31,7 @@ type options struct {
 	ioEventQueueLen   int                    // I/O event queue length
 	timeoutTicker     time.Duration          // Timeout check interval
 	timeout           time.Duration          // Timeout period
+	reportTicker      time.Duration          // report server statics interval
 	decoder           Decoder                // decoder
 	encoder           Encoder                // Encoder
 	keepaliveInterval time.Duration          // tcp keepalive interval
@@ -108,6 +109,16 @@ func WithTimeout(timeoutTicker, timeout time.Duration) Option {
 	})
 }
 
+func WithReportTime(reportTime time.Duration) Option {
+	return newFuncServerOption(func(o *options) {
+		if reportTime <= 0 {
+			panic("reportTicker time must greater than 0")
+		}
+
+		o.reportTicker = reportTime
+	})
+}
+
 func WithDecoder(decoder Decoder) Option {
 	return newFuncServerOption(func(o *options) {
 		o.decoder = decoder
@@ -163,8 +174,11 @@ func getOptions(opts ...Option) *options {
 		ioGNum:          cpuNum,
 		ioEventQueueLen: 1024,
 		listenBacklog:   1024,
-		ioUringEntries:  1024,
-		ioUringParams:   &gouring.IoUringParams{},
+		timeoutTicker:   3 * time.Second,
+		timeout:         1 * time.Hour,
+		//reportTicker:    3 * time.Second,
+		ioUringEntries: 1024,
+		ioUringParams:  &gouring.IoUringParams{},
 	}
 
 	for _, o := range opts {

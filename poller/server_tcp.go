@@ -20,7 +20,7 @@ type Server struct {
 	ioQueueNum     int                         // Number of I/O event queues
 	conns          sync.Map                    // TCP long connection management
 	connsNum       int64                       // Indicates the number of established long connections
-	stop           chan int                    // Indicates the server shutdown signal
+	stop           chan struct{}               // Indicates the server shutdown signal
 	listenFD       int                         // listen fd
 	pollerFD       int                         // event poller fd (epoll/kqueue, poll, select)
 	iouring        *ioUring                    // iouring async event
@@ -79,16 +79,12 @@ func NewServer(address string, handler Handler, opts ...Option) (*Server, error)
 		ioQueueNum:     options.ioGNum,
 		conns:          sync.Map{},
 		connsNum:       0,
-		stop:           make(chan int),
+		stop:           make(chan struct{}),
 		listenFD:       lfd,
 		pollerFD:       pollerFD,
 		iouring:        ring,
 		asyncEventCb:   map[EventType]EventCallBack{},
 	}, nil
-}
-
-func (s *Server) registerEventCb() {
-
 }
 
 // GetConn
@@ -111,6 +107,7 @@ func (s *Server) Run() {
 	s.startAcceptor()
 	s.startIOConsumeHandler()
 	s.checkTimeout()
+	s.report()
 	s.startIOEventLooper()
 }
 
@@ -164,15 +161,17 @@ func (s *Server) accept() {
 			}
 			addr := getAddr(socketAddr)
 
-			err = addReadEvent(s.pollerFD, cfd)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-
 			conn := newConn(s.pollerFD, cfd, addr, s)
 			s.conns.Store(cfd, conn)
 			atomic.AddInt64(&s.connsNum, 1)
+
+			err = addReadEvent(s.pollerFD, cfd)
+			if err != nil {
+				log.Error(err)
+				conn.Close()
+				continue
+			}
+
 			s.handler.OnConnect(conn)
 		}
 	}
@@ -243,14 +242,17 @@ func (s *Server) startIOEventPollDispatcher() {
 	for {
 		select {
 		case <-s.stop:
-			log.Error("stop io event poll dispatcher")
+			log.Infof("stop io event poll dispatcher")
 			return
 		default:
 			var err error
 			var events []eventInfo
 			events, err = getEvents(s.pollerFD)
 			if err != nil {
-				log.Error(err)
+				if err != syscall.EINTR {
+					log.Error(err)
+				}
+				continue
 			}
 
 			// dispatch
@@ -283,7 +285,7 @@ func (s *Server) startIOUringPollDispatcher() {
 			// dispatch
 			s.handleEvent(event)
 			// commit cqe is seen
-			s.iouring.cqeDone(event.cqe)
+			//s.iouring.cqeDone(event.cqe)
 		}
 	} // end for
 }
@@ -330,7 +332,7 @@ func (s *Server) consumeIOCompletionEvent(queue chan *eventInfo) {
 		// get connect from fd
 		v, ok := s.conns.Load(event.fd)
 		if !ok {
-			log.Errorf("fd %d not found in conns, event:%s , continue next event", event.fd, event)
+			log.Warnf("fd %d not found in conns, event:%s , continue next event", event.fd, event)
 			continue
 		}
 		c := v.(*Conn)
@@ -371,7 +373,7 @@ func (s *Server) consumeIOReadyEvent(queue chan *eventInfo) {
 	for event := range queue {
 		v, ok := s.conns.Load(event.fd)
 		if !ok {
-			log.Error("not found in conns,", event.fd)
+			log.Warn("not found in conns,", event.fd, event)
 			continue
 		}
 		c := v.(*Conn)
@@ -412,7 +414,7 @@ func (s *Server) checkTimeout() {
 		return
 	}
 
-	log.Infof("check timeout goroutine run,check_time:%v,timeout:%v", s.options.timeoutTicker, s.options.timeout)
+	log.Infof("check timeout goroutine run,check_time:%v, timeout:%v", s.options.timeoutTicker, s.options.timeout)
 	go func() {
 		ticker := time.NewTicker(s.options.timeoutTicker)
 		for {
@@ -422,7 +424,7 @@ func (s *Server) checkTimeout() {
 			case <-ticker.C:
 				s.conns.Range(func(key, value interface{}) bool {
 					c := value.(*Conn)
-
+					//log.Infof("check connect %+v", c)
 					if time.Since(c.lastReadTime) > s.options.timeout {
 						s.handleEvent(&eventInfo{fd: int(c.fd), etype: ETypeTimeout})
 					}
@@ -433,7 +435,24 @@ func (s *Server) checkTimeout() {
 	}()
 }
 
-// roundDurationUp rounds d to the next multiple of to.
-func roundDurationUp(d time.Duration, to time.Duration) time.Duration {
-	return (d + to - 1) / to
+func (s *Server) report() {
+	if s.options.reportTicker == 0 {
+		return
+	}
+
+	log.Infof("start report server info, report tick time %v", s.options.reportTicker)
+	go func() {
+		ticker := time.NewTicker(s.options.reportTicker)
+		for {
+			select {
+			case <-s.stop:
+				return
+			case <-ticker.C:
+				n := s.GetConnsNum()
+				if n > 0 {
+					log.Infof("current active connect num %d", n)
+				}
+			}
+		}
+	}()
 }

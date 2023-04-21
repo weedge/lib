@@ -880,8 +880,8 @@ github.com/twitchyliquid64/golang-asm v0.15.1/go.mod h1:a1lVb/DtPvCB8fslRZhAngC2
 github.com/ugorji/go/codec v1.2.9 h1:rmenucSohSTiyL09Y+l2OCk+FrMxGMzho2+tjr5ticU=
 github.com/ugorji/go/codec v1.2.9/go.mod h1:UNopzCgEMSXjBc6AOMqYvWC1ktqTAfzJZUZgYf6w6lg=
 github.com/urfave/cli/v2 v2.11.0/go.mod h1:f8iq5LtQ/bLxafbdBSLPPNsgaW0l/2fYYEHhAyPlwvo=
-github.com/weedge/gouring v0.0.0-20230411081646-786c38caeec4 h1:FFzkTaNodosnPHImVXKTINyVbpgK3Lh0mLuG2S8qmKk=
-github.com/weedge/gouring v0.0.0-20230411081646-786c38caeec4/go.mod h1:N0ZG7IecW/UozBekxKIptKcrzMkc7MJEAxnb4UdmEEM=
+github.com/weedge/gouring v0.0.0-20230419141631-a02ded170406 h1:JnZL+mFunNAqW0ML5LWQO5ZcsrStKQ3yWtM8aMba1Nk=
+github.com/weedge/gouring v0.0.0-20230419141631-a02ded170406/go.mod h1:N0ZG7IecW/UozBekxKIptKcrzMkc7MJEAxnb4UdmEEM=
 github.com/xdg-go/pbkdf2 v1.0.0 h1:Su7DPu48wXMwC3bs7MCNG+z4FhcyEuz5dlvchbq0B0c=
 github.com/xdg-go/pbkdf2 v1.0.0/go.mod h1:jrpuAogTd400dnrH08LKmI/xc1MbPOebTwRqcT5RDeI=
 github.com/xdg-go/scram v1.1.2 h1:FHX5I5B4i4hKRVRBCFRxq1iQRej7WO3hhBuJf+UUySY=

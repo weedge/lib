@@ -57,9 +57,10 @@ func main() {
 		}
 	}()
 
-	server, err := poller.NewServer(":"+*port, &MockServerHandler{}, poller.WithDecoder(&MockDecoder{}),
+	server, err := poller.NewServer(":"+*port, &MockServerHandler{},
+		//poller.WithDecoder(&MockDecoder{}),
 		poller.WithIoMode(mapIoMode[*ioMode]),
-		poller.WithTimeout(10*time.Second, 3600*time.Second), poller.WithReadBufferLen(*msgSize))
+		poller.WithTimeout(3*time.Second, 100*time.Second), poller.WithReadBufferLen(*msgSize))
 	if err != nil {
 		log.Info("err ", err.Error())
 		return
