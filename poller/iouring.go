@@ -13,6 +13,7 @@ import (
 
 	"github.com/ii64/gouring"
 	"github.com/weedge/lib/log"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -20,12 +21,13 @@ const (
 )
 
 type ioUring struct {
-	//submitNum    int64            // submit num for io_uring_enter submited check
 	spins             int64                           // spins count for submit and wait timeout
 	ring              *gouring.IoUring                // liburing ring obj
-	submitSignal      chan struct{}                   // submit signal
+	eventfd           int                             // register iouring eventfd
 	mapUserDataEvent  map[gouring.UserData]*eventInfo // user data from cqe to event info
 	userDataEventLock sync.RWMutex                    // rwlock for mapUserDataEvent
+	subLock           sync.Mutex
+	cqeSignCh         chan struct{}
 }
 
 // newIoUring
@@ -58,11 +60,13 @@ func newIoUring(entries uint32, params *gouring.IoUringParams) (iouring *ioUring
 
 	log.Infof("newIoUring ok")
 
-	return &ioUring{
+	iouring = &ioUring{
 		ring:             ring,
-		submitSignal:     make(chan struct{}),
 		mapUserDataEvent: make(map[gouring.UserData]*eventInfo),
-	}, nil
+		cqeSignCh:        make(chan struct{}, 1),
+	}
+
+	return
 }
 
 func (m *ioUring) CloseRing() {
@@ -71,9 +75,24 @@ func (m *ioUring) CloseRing() {
 	}
 }
 
+func (m *ioUring) RegisterEventFd() (err error) {
+	eventfd, err := unix.Eventfd(0, unix.EFD_NONBLOCK|unix.EFD_CLOEXEC)
+	if err != nil {
+		return
+	}
+	m.eventfd = eventfd
+
+	err = m.ring.RegisterEventFd(m.eventfd)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 // getEventInfo io_uring submit and wait cqe for reap event
 // notice: gc
-func (m *ioUring) getEventInfo() (info *eventInfo, err error) {
+func (m *ioUring) getEventInfov1() (info *eventInfo, err error) {
 	if atomic.AddInt64(&m.spins, 1) <= 20 {
 		return
 	}
@@ -83,7 +102,7 @@ func (m *ioUring) getEventInfo() (info *eventInfo, err error) {
 	// submit wait at least 1 cqe and wait 1 us timeout, todo: use sync call instead of async callback
 	err = m.ring.SubmitAndWaitTimeOut(&cqeData, 1, 1, nil)
 	if err != nil {
-		if err == syscall.ETIME || err == syscall.EINTR {
+		if errors.Is(err, syscall.ETIME) || errors.Is(err, syscall.EINTR) || errors.Is(err, syscall.EAGAIN) {
 			err = nil
 		}
 		return
@@ -92,29 +111,38 @@ func (m *ioUring) getEventInfo() (info *eventInfo, err error) {
 		return
 	}
 
-	cqe := *cqeData
-	if cqe.UserData.GetUnsafe() == nil {
+	if cqeData.UserData.GetUnsafe() == nil {
 		// Own timeout doesn't have user data
-		errStr := fmt.Sprintf("no user data, cqe:%+v", cqe)
+		errStr := fmt.Sprintf("no user data, cqe:%+v", cqeData)
 		err = errors.New(errStr)
 		return
 	}
+	cqe := *cqeData
 
 	m.userDataEventLock.Lock()
-	info = m.mapUserDataEvent[cqe.UserData]
+	info, ok := m.mapUserDataEvent[cqe.UserData]
+	if !ok {
+		errStr := fmt.Sprintf("cqe %+v userData %d get event info: %s empty", cqe, cqe.UserData, info)
+		m.userDataEventLock.Unlock()
+		//panic(errStr)
+		log.Error(errStr)
+		// commit cqe is seen
+		m.cqeDone(cqe)
+		return
+	}
 	//info = (*eventInfo)(cqe.UserData.GetUnsafe())
 	if info != nil && (info.cb == nil || info.etype == ETypeUnknow) {
 		m.userDataEventLock.Unlock()
 		err = errors.New("error event infoPtr")
+		// commit cqe is seen
+		m.cqeDone(cqe)
 		return
 	}
 	//https://github.com/golang/go/issues/20135
 	delete(m.mapUserDataEvent, cqe.UserData)
-	m.userDataEventLock.Unlock()
-
+	log.Infof("userData %d get event info: %s", cqe.UserData, info)
 	info.cqe = cqe
-
-	log.Infof("get event info: %s", info)
+	m.userDataEventLock.Unlock()
 
 	return
 }
@@ -123,13 +151,57 @@ func (m *ioUring) getEventInfo() (info *eventInfo, err error) {
 // @todo
 // io_uring submit and wait mutli cqe for reap events
 func (m *ioUring) getEventInfos(infos []*eventInfo, err error) {
-
 	return
+}
+
+func (m *ioUring) getEventInfo() (info *eventInfo, err error) {
+	for {
+		select {
+		case <-m.cqeSignCh:
+			var cqe *gouring.IoUringCqe
+			err = m.ring.PeekCqe(&cqe)
+			if err != nil {
+				continue
+			}
+			if cqe == nil {
+				log.Warnf("cqe is nil")
+				continue
+			}
+
+			m.userDataEventLock.Lock()
+			info, ok := m.mapUserDataEvent[cqe.UserData]
+			if !ok {
+				errStr := fmt.Sprintf("cqe %+v userData %d get event info: %s empty", cqe, cqe.UserData, info)
+				m.userDataEventLock.Unlock()
+				//panic(errStr)
+				log.Error(errStr)
+				// commit cqe is seen
+				m.cqeDone(*cqe)
+				continue
+			}
+			//info = (*eventInfo)(cqe.UserData.GetUnsafe())
+			if info != nil && (info.cb == nil || info.etype == ETypeUnknow) {
+				m.userDataEventLock.Unlock()
+				log.Error("error event infoPtr")
+				// commit cqe is seen
+				m.cqeDone(*cqe)
+				continue
+			}
+			//https://github.com/golang/go/issues/20135
+			delete(m.mapUserDataEvent, cqe.UserData)
+			log.Debugf("userData %d get event info: %s", cqe.UserData, info)
+			info.cqe = *cqe
+			m.userDataEventLock.Unlock()
+
+			return info, nil
+		}
+	}
 }
 
 func (m *ioUring) addAcceptSqe(cb EventCallBack, lfd int,
 	clientAddr *syscall.RawSockaddrAny, clientAddrLen uint32, flags uint8) {
-	println("addAcceptSqe")
+	m.subLock.Lock()
+	defer m.subLock.Unlock()
 	sqe := m.ring.GetSqe()
 	gouring.PrepAccept(sqe, lfd, clientAddr, (*uintptr)(unsafe.Pointer(&clientAddrLen)), 0)
 	sqe.Flags = flags
@@ -140,14 +212,17 @@ func (m *ioUring) addAcceptSqe(cb EventCallBack, lfd int,
 		cb:    cb,
 	}
 
-	sqe.UserData.SetUnsafe(unsafe.Pointer(eventInfo))
+	sqe.UserData = gouring.UserData(uintptr(unsafe.Pointer(eventInfo)))
 	m.userDataEventLock.Lock()
 	m.mapUserDataEvent[sqe.UserData] = eventInfo
 	m.userDataEventLock.Unlock()
+	log.Debugf("addAcceptSqe userData %d eventInfo:%s", sqe.UserData, eventInfo)
+	m.ring.Submit()
 }
 
 func (m *ioUring) addRecvSqe(cb EventCallBack, cfd int, buff []byte, size int, flags uint8) {
-	println("addRecvSqe")
+	m.subLock.Lock()
+	defer m.subLock.Unlock()
 	var buf *byte
 	if len(buff) > 0 {
 		buf = &buff[0]
@@ -162,14 +237,18 @@ func (m *ioUring) addRecvSqe(cb EventCallBack, cfd int, buff []byte, size int, f
 		cb:    cb,
 	}
 
-	sqe.UserData.SetUnsafe(unsafe.Pointer(eventInfo))
+	//sqe.UserData.SetUnsafe(unsafe.Pointer(eventInfo))
+	sqe.UserData = gouring.UserData(uintptr(unsafe.Pointer(eventInfo)))
 	m.userDataEventLock.Lock()
 	m.mapUserDataEvent[sqe.UserData] = eventInfo
 	m.userDataEventLock.Unlock()
+	log.Debugf("addRecvSqe userData %d eventInfo:%s", sqe.UserData, eventInfo)
+	m.ring.Submit()
 }
 
 func (m *ioUring) addSendSqe(cb EventCallBack, cfd int, buff []byte, msgSize int, flags uint8) {
-	println("addSendSqe")
+	m.subLock.Lock()
+	defer m.subLock.Unlock()
 	var buf *byte
 	if len(buff) > 0 {
 		buf = &buff[0]
@@ -184,10 +263,13 @@ func (m *ioUring) addSendSqe(cb EventCallBack, cfd int, buff []byte, msgSize int
 		cb:    cb,
 	}
 
-	sqe.UserData.SetUnsafe(unsafe.Pointer(eventInfo))
+	//sqe.UserData.SetUnsafe(unsafe.Pointer(eventInfo))
+	sqe.UserData = gouring.UserData(uintptr(unsafe.Pointer(eventInfo)))
 	m.userDataEventLock.Lock()
 	m.mapUserDataEvent[sqe.UserData] = eventInfo
 	m.userDataEventLock.Unlock()
+	log.Debugf("addSendSqe userData %d eventInfo:%s", sqe.UserData, eventInfo)
+	m.ring.Submit()
 }
 
 func (m *ioUring) cqeDone(cqe gouring.IoUringCqe) {

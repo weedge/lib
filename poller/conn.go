@@ -90,7 +90,8 @@ func (c *Conn) MsgFilter() (err error) {
 func (c *Conn) AsyncBlockRead() {
 	c.lastReadTime = time.Now()
 	fd := c.GetFd()
-	c.buffer.AsyncReadFromFD(fd, c.server.iouring, c.getReadCallback())
+	ring := c.server.GetIoUring(fd)
+	c.buffer.AsyncReadFromFD(fd, ring, c.getReadCallback())
 }
 
 func (c *Conn) getReadCallback() EventCallBack {
@@ -120,7 +121,8 @@ func (c *Conn) processReadEvent(e *eventInfo) (err error) {
 // AsyncBlockWrite
 // async block write bytes
 func (c *Conn) AsyncBlockWrite(bytes []byte) {
-	c.server.iouring.addSendSqe(noOpsEventCb, c.fd, bytes, len(bytes), 0)
+	ring := c.server.GetIoUring(c.fd)
+	ring.addSendSqe(noOpsEventCb, c.fd, bytes, len(bytes), 0)
 }
 
 func (c *Conn) processWirteEvent(e *eventInfo) (err error) {

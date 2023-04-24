@@ -23,8 +23,9 @@ type Server struct {
 	stop           chan struct{}               // Indicates the server shutdown signal
 	listenFD       int                         // listen fd
 	pollerFD       int                         // event poller fd (epoll/kqueue, poll, select)
-	iouring        *ioUring                    // iouring async event
+	iourings       []*ioUring                  // iouring async event rings
 	asyncEventCb   map[EventType]EventCallBack // async event call back register
+	looperWg       sync.WaitGroup              // main looper group wait
 }
 
 // NewServer
@@ -56,13 +57,28 @@ func NewServer(address string, handler Handler, opts ...Option) (*Server, error)
 	}
 
 	// init io_uring setup
-	var ring *ioUring
-	if options.ioMode == IOModeUring {
-		ring, err = newIoUring(options.ioUringEntries, options.ioUringParams)
-		if err != nil {
-			log.Error(err)
-			return nil, err
-		}
+	var rings []*ioUring
+	if options.ioMode == IOModeUring || options.ioMode == IOModeEpollUring {
+		rings = make([]*ioUring, options.ioUringNum)
+		for i := 0; i < options.ioUringNum; i++ {
+			ring, err := newIoUring(options.ioUringEntries, options.ioUringParams)
+			if err != nil {
+				log.Errorf("newIoUring %d err %s", i, err.Error())
+				return nil, err
+			}
+
+			// register eventfd
+			if options.ioMode == IOModeEpollUring {
+				err = ring.RegisterEventFd()
+				if err != nil {
+					log.Errorf("ring.RegisterEventFd %d err %s", i, err.Error())
+					ring.CloseRing()
+					return nil, err
+				}
+			}
+
+			rings[i] = ring
+		} // end for
 	}
 
 	// init io event channel(queue)
@@ -82,7 +98,7 @@ func NewServer(address string, handler Handler, opts ...Option) (*Server, error)
 		stop:           make(chan struct{}),
 		listenFD:       lfd,
 		pollerFD:       pollerFD,
-		iouring:        ring,
+		iourings:       rings,
 		asyncEventCb:   map[EventType]EventCallBack{},
 	}, nil
 }
@@ -103,17 +119,58 @@ func (s *Server) GetConn(fd int32) (*Conn, bool) {
 // ioConsumeHandler hanle event for biz logic
 // check time out connenct session,
 func (s *Server) Run() {
-	log.Info("start server run")
+	log.Info("start server runing...")
+	// rigister event
+	s.rigisterEpollIouringEvent()
+
+	// monitor
+	s.report()
+	s.checkTimeout()
+
+	// start server
 	s.startAcceptor()
 	s.startIOConsumeHandler()
-	s.checkTimeout()
-	s.report()
 	s.startIOEventLooper()
 }
 
-// GetConnsNum
-func (s *Server) GetConnsNum() int64 {
-	return atomic.LoadInt64(&s.connsNum)
+// rigisterEpollIouringEvent
+// rigister epoll iouring eventfd, wait eventfd iouring cq read ready event,
+// notify iouring to get cqe
+func (s *Server) rigisterEpollIouringEvent() {
+	if s.options.ioMode != IOModeEpollUring {
+		return
+	}
+	log.Info("start notify iouring cq event by epoll rigistered iouring eventfd")
+
+	err := s.rigisterIoUringEvent()
+	if err != nil {
+		log.Errorf("rigisterIoUringEvent err %s", err.Error())
+		return
+	}
+
+	go s.startNotifyIoUringCQEvent()
+}
+
+// rigisterIoUringEvent
+// add read event to epoll item list for registered iouring eventfd (just read)
+func (s *Server) rigisterIoUringEvent() (err error) {
+	for i := 0; i < s.options.ioUringNum; i++ {
+		log.Debugf("pollerFD %d eventfd %d add epoll readable event", s.pollerFD, s.iourings[i].eventfd)
+		err = addReadEvent(s.pollerFD, s.iourings[i].eventfd)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
+// CloseIoUring
+// remove rigistered  eventfd iouring event, free iouring mmap
+func (s *Server) CloseIoUring() {
+	for i := 0; i < len(s.iourings); i++ {
+		delEventFD(s.pollerFD, s.iourings[i].eventfd)
+		s.iourings[i].CloseRing()
+	}
 }
 
 // Stop
@@ -125,15 +182,18 @@ func (s *Server) Stop() {
 		close(queue)
 	}
 
-	if s.iouring != nil {
-		s.iouring.CloseRing()
-	}
+	s.CloseIoUring()
+}
+
+// GetConnsNum
+func (s *Server) GetConnsNum() int64 {
+	return atomic.LoadInt64(&s.connsNum)
 }
 
 // startAcceptor
 // setup accept connect goroutine
 func (s *Server) startAcceptor() {
-	if s.iouring != nil {
+	if len(s.iourings) != 0 {
 		go s.asyncBlockAccept()
 		log.Info("start trigger async block accept")
 		return
@@ -187,7 +247,45 @@ func (s *Server) nonBlockPollAccept() {
 func (s *Server) asyncBlockAccept() {
 	var rsa syscall.RawSockaddrAny
 	var len uint32 = syscall.SizeofSockaddrAny
-	s.iouring.addAcceptSqe(s.getAcceptCallback(&rsa), s.listenFD, &rsa, len, 0)
+	s.GetIoUring(s.listenFD).addAcceptSqe(s.getAcceptCallback(&rsa), s.listenFD, &rsa, len, 0)
+}
+
+func (s *Server) GetIoUring(fd int) *ioUring {
+	return s.iourings[fd%s.options.ioUringNum]
+}
+
+func (s *Server) GetEventIoUring(efd int) *ioUring {
+	if len(s.iourings) == 0 {
+		return nil
+	}
+	for i := 0; i < s.options.ioUringNum; i++ {
+		if efd == s.iourings[i].eventfd {
+			return s.iourings[i]
+		}
+	}
+
+	return nil
+}
+
+func (s *Server) startNotifyIoUringCQEvent() {
+	for {
+		select {
+		case <-s.stop:
+			return
+		default:
+			events, err := getEvents(s.pollerFD)
+			if err != nil {
+				if err != syscall.EINTR {
+					log.Errorf("getEvents err %s", err.Error())
+				}
+				continue
+			}
+			for _, event := range events {
+				ring := s.GetEventIoUring(event.fd)
+				ring.cqeSignCh <- struct{}{}
+			}
+		}
+	}
 }
 
 func (s *Server) getAcceptCallback(rsa *syscall.RawSockaddrAny) EventCallBack {
@@ -224,15 +322,20 @@ func (s *Server) getAcceptCallback(rsa *syscall.RawSockaddrAny) EventCallBack {
 	}
 }
 
-// startIOEventLooper
+// startIOEventLooper main looper
 // from poller events or io_uring cqe event entries
 func (s *Server) startIOEventLooper() {
 	//runtime.LockOSThread()
-	if s.iouring != nil {
-		s.startIOUringPollDispatcher()
-	} else {
+	if s.iourings == nil {
 		s.startIOEventPollDispatcher()
+		return
 	}
+
+	s.looperWg.Add(len(s.iourings))
+	for i := 0; i < len(s.iourings); i++ {
+		go s.startIOUringPollDispatcher(i)
+	}
+	s.looperWg.Wait()
 }
 
 // startIOEventPollDispatcher
@@ -265,17 +368,21 @@ func (s *Server) startIOEventPollDispatcher() {
 
 // startIOUringPollDispatcher
 // get completed event ops from io_uring cqe event entries, distpatch to event channel(queue)
-func (s *Server) startIOUringPollDispatcher() {
-	log.Info("start io_uring event op poll dispatcher")
+func (s *Server) startIOUringPollDispatcher(id int) {
+	defer s.looperWg.Done()
+	if s.iourings[id] == nil {
+		return
+	}
+	log.Infof("start io_uring event op poll dispatcher id %d", id)
 	for {
 		select {
 		case <-s.stop:
-			log.Info("stop io_uring event op poll dispatcher")
+			log.Infof("stop io_uring event op poll dispatcher id %d", id)
 			return
 		default:
-			event, err := s.iouring.getEventInfo()
+			event, err := s.iourings[id].getEventInfo()
 			if err != nil {
-				log.Warnf("iouring get events error:%s continue", err.Error())
+				log.Warnf("id %d iouring get events error:%s continue", id, err.Error())
 				continue
 			}
 			if event == nil {
@@ -285,7 +392,7 @@ func (s *Server) startIOUringPollDispatcher() {
 			// dispatch
 			s.handleEvent(event)
 			// commit cqe is seen
-			//s.iouring.cqeDone(event.cqe)
+			s.iourings[id].cqeDone(event.cqe)
 		}
 	} // end for
 }
@@ -303,14 +410,13 @@ func (s *Server) handleEvent(event *eventInfo) {
 // setup io event consume goroutine
 func (s *Server) startIOConsumeHandler() {
 	for _, queue := range s.ioEventQueues {
-		queue := queue
 		go s.consumeIOEvent(queue)
 	}
 	log.Info(fmt.Sprintf("start io event consumer by %d goroutine handler", len(s.ioEventQueues)))
 }
 
 func (s *Server) consumeIOEvent(queue chan *eventInfo) {
-	if s.iouring != nil {
+	if s.iourings != nil {
 		s.consumeIOCompletionEvent(queue)
 	} else {
 		s.consumeIOReadyEvent(queue)

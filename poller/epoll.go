@@ -4,7 +4,6 @@
 package poller
 
 import (
-	"syscall"
 	"time"
 
 	"github.com/weedge/lib/log"
@@ -14,7 +13,8 @@ import (
 const (
 	// man epoll_ctl  see EPOLL_EVENTS detail
 	//1 2 8 16 8192 2147483648
-	EpollReadEvents = unix.EPOLLIN | unix.EPOLLPRI | unix.EPOLLERR | unix.EPOLLHUP | unix.EPOLLRDHUP | unix.EPOLLET
+	//EpollReadEvents = unix.EPOLLIN | unix.EPOLLPRI | unix.EPOLLERR | unix.EPOLLHUP | unix.EPOLLRDHUP | unix.EPOLLET
+	EpollReadEvents = unix.EPOLLIN | unix.EPOLLET
 	EpollPeerClose  = unix.EPOLLIN | unix.EPOLLRDHUP
 	EpollRead       = unix.EPOLLIN
 	EpollErr        = unix.EPOLLIN | unix.EPOLLERR
@@ -22,7 +22,7 @@ const (
 )
 
 func createPoller() (pollFD int, err error) {
-	pollFD, err = syscall.EpollCreate1(0)
+	pollFD, err = unix.EpollCreate1(unix.EPOLL_CLOEXEC)
 	if err != nil {
 		return
 	}
@@ -30,7 +30,7 @@ func createPoller() (pollFD int, err error) {
 }
 
 func addReadEventFD(pollFD, fd int) (err error) {
-	err = syscall.EpollCtl(pollFD, syscall.EPOLL_CTL_ADD, fd, &syscall.EpollEvent{
+	err = unix.EpollCtl(pollFD, unix.EPOLL_CTL_ADD, fd, &unix.EpollEvent{
 		Events: EpollReadEvents,
 		Fd:     int32(fd),
 	})
@@ -39,7 +39,7 @@ func addReadEventFD(pollFD, fd int) (err error) {
 }
 
 func delEventFD(pollFD, fd int) error {
-	err := syscall.EpollCtl(pollFD, syscall.EPOLL_CTL_DEL, fd, nil)
+	err := unix.EpollCtl(pollFD, unix.EPOLL_CTL_DEL, fd, nil)
 	if err != nil {
 		return err
 	}
@@ -48,8 +48,8 @@ func delEventFD(pollFD, fd int) error {
 }
 
 func getEvents(pollFD int) ([]eventInfo, error) {
-	epollEvents := make([]syscall.EpollEvent, 100)
-	n, err := syscall.EpollWait(pollFD, epollEvents, -1)
+	epollEvents := make([]unix.EpollEvent, 100)
+	n, err := unix.EpollWait(pollFD, epollEvents, -1)
 	if err != nil {
 		return nil, err
 	}
@@ -83,18 +83,18 @@ func getEvents(pollFD int) ([]eventInfo, error) {
 }
 
 func setSockKeepAliveOptions(fd int, d time.Duration) (err error) {
-	err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, 1)
+	err = unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_KEEPALIVE, 1)
 	if err != nil {
 		return
 	}
 
 	secs := int(roundDurationUp(d, time.Second))
-	err = syscall.SetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, secs)
+	err = unix.SetsockoptInt(fd, unix.IPPROTO_TCP, unix.TCP_KEEPINTVL, secs)
 	if err != nil {
 		return
 	}
 
-	err = syscall.SetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE, secs)
+	err = unix.SetsockoptInt(fd, unix.IPPROTO_TCP, unix.TCP_KEEPIDLE, secs)
 	if err != nil {
 		return
 	}

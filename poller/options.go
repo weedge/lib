@@ -11,6 +11,7 @@ type IOMode int32
 
 const (
 	IOModeUnkonw      IOMode = iota
+	IOModeEpollUring         // add epoll IN ready event for registered eventfd in iouring
 	IOModeUring              // all async block event (interrupt)
 	IOModeUringPoll          // poll IN ready event
 	IOModeUringSQPoll        // less syscall for io_uring_enter
@@ -37,6 +38,7 @@ type options struct {
 	keepaliveInterval time.Duration          // tcp keepalive interval
 	listenBacklog     int                    // listen bakklog size
 	ioMode            IOMode                 // io event mode: io_uring, poll other
+	ioUringNum        int                    // init io_uring ring num
 	ioUringParams     *gouring.IoUringParams // io_uring_setup params
 	ioUringEntries    uint32                 // io_uring setup sqe entry array size
 }
@@ -166,6 +168,15 @@ func WithIoMode(mode IOMode) Option {
 	})
 }
 
+func WithIoUringNum(ioUringNum int) Option {
+	return newFuncServerOption(func(o *options) {
+		if ioUringNum <= 0 {
+			panic("ioUringNum must greater than 0")
+		}
+		o.ioUringNum = ioUringNum
+	})
+}
+
 func getOptions(opts ...Option) *options {
 	cpuNum := runtime.NumCPU()
 	options := &options{
@@ -177,6 +188,8 @@ func getOptions(opts ...Option) *options {
 		timeoutTicker:   3 * time.Second,
 		timeout:         1 * time.Hour,
 		//reportTicker:    3 * time.Second,
+		ioMode:         IOModeUnkonw,
+		ioUringNum:     1,
 		ioUringEntries: 1024,
 		ioUringParams:  &gouring.IoUringParams{},
 	}

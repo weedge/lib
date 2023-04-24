@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func GetIPPort(addr string) (ip [4]byte, port int, err error) {
@@ -30,4 +31,9 @@ func GetIPPort(addr string) (ip [4]byte, port int, err error) {
 
 	port, err = strconv.Atoi(strs[1])
 	return
+}
+
+// roundDurationUp rounds d to the next multiple of to.
+func roundDurationUp(d time.Duration, to time.Duration) time.Duration {
+	return (d + to - 1) / to
 }

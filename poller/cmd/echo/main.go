@@ -43,7 +43,8 @@ var port = flag.String("port", "8081", "port")
 var msgSize = flag.Int("size", 512, "size")
 var ioMode = flag.String("ioMode", "", "ioMode")
 var mapIoMode = map[string]poller.IOMode{
-	"iouring": poller.IOModeUring,
+	"iouring":      poller.IOModeUring,
+	"epollIouring": poller.IOModeEpollUring,
 }
 
 func main() {
